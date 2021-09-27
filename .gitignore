@@ -104,6 +104,8 @@ celerybeat.pid
 # Environments
 .env
 .venv
+infra/.db_env
+infra/.web_env
 env/
 venv/
 ENV/
@@ -130,3 +132,5 @@ dmypy.json
 
 # .idea
 .idea
+
+infra/nginx.conf
