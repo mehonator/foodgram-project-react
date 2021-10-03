@@ -103,3 +103,10 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = "/var/html/media/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+DJOSER = {
+    "HIDE_USERS": False,
+    'SERIALIZERS': {
+        "user": "users.serializers.CustomUserSerializer"
+    },
+}
