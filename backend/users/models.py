@@ -27,3 +27,18 @@ class CustomUser(AbstractUser):
     @property
     def is_admin(self):
         return self.role == Role.ADMIN or self.is_superuser or self.is_staff
+
+
+class Subscription(models.Model):
+    follower = models.ForeignKey(
+        CustomUser, related_name="follower", on_delete=models.CASCADE
+    )
+    leader = models.ForeignKey(
+        CustomUser, related_name="leader", on_delete=models.CASCADE
+    )
+
+    class Meta:
+        unique_together = (("follower", "leader"),)
+
+    def __str__(self):
+        return f"{self.follower.get_username()}-{self.leader.get_username()}"

@@ -5,6 +5,8 @@ CustomUser = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(source="pk", read_only=True)
+
     class Meta:
         model = CustomUser
         fields = (
@@ -12,5 +14,14 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name",
             "username",
             "email",
-            "role",
+            "id",
         )
+
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    leader = UserSerializer()
+    # рецепты
+
+
+class SubscriptionsSerializer(serializers.ModelSerializer):
+    subscriptions = SubscriptionSerializer(many=True)
