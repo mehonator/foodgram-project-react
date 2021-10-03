@@ -24,7 +24,7 @@ ADMIN_FIRST_NAME = "Администратор"
 ADMIN_LAST_NAME = "Администраторов"
 
 NAMES_PATHS = {
-    "user-list": "users:user-list",
+    "user-list": "/api/users/",
 }
 
 
@@ -33,10 +33,10 @@ class UsersTests(TestCase):
     def setUpClass(cls):
         super().setUpClass()
 
-        cls.urls = {
-            "user-me": reverse(NAMES_PATHS["user-list"]) + "me/",
-            "user-list": reverse(NAMES_PATHS["user-list"]),
-        }
+        # cls.urls = {
+        #     "user-me": reverse(NAMES_PATHS["user-list"]) + "me/",
+        #     "user-list": reverse(NAMES_PATHS["user-list"]),
+        # }
 
         cls.user = CustomUser.objects.create_user(
             username=USERNAME,
@@ -59,7 +59,7 @@ class UsersTests(TestCase):
 
     def test_me(self):
         """Проверка записи о себе"""
-        response = UsersTests.authorized_client.get(UsersTests.urls["user-me"])
+        response = UsersTests.authorized_client.get("/api/users/me/")
         self.assertEqual(
             response.data["username"],
             USERNAME,
@@ -71,9 +71,7 @@ class UsersTests(TestCase):
         self.assertTrue(response.data.get("id", False))
 
     def test_get_list(self):
-        response = UsersTests.authorized_client.get(
-            UsersTests.urls["user-list"]
-        )
+        response = UsersTests.authorized_client.get(NAMES_PATHS["user-list"])
         self.assertEqual(response.status_code, 200)
         except_json = {
             "count": 2,
@@ -85,6 +83,7 @@ class UsersTests(TestCase):
                     "last_name": "pupkin",
                     "username": "Test_urser",
                     "email": "test_user@email.ru",
+                    'is_subscribed': False,
                     "id": 1,
                 },
                 {
@@ -92,6 +91,7 @@ class UsersTests(TestCase):
                     "first_name": "Администратор",
                     "id": 2,
                     "last_name": "Администраторов",
+                    'is_subscribed': False,
                     "username": "Admin",
                 },
             ],
@@ -120,65 +120,28 @@ class UsersTests(TestCase):
         num_page = 50 // Pagination.default_limit
         self.generate_users(num_users)
 
-        response = UsersTests.authorized_client.get(
-            UsersTests.urls["user-list"]
-        )
+        response = UsersTests.authorized_client.get(NAMES_PATHS["user-list"])
         for i in range(1, num_page):
             next_page_url = response.data["next"]
             self.assertIsNotNone(next_page_url, f"Пустая {i} страница")
             response = UsersTests.authorized_client.get(next_page_url)
 
     def test_regestration_user(self):
-        correct_user_json = json.dumps(
-            {
-                "username": "testuser",
-                "fisrtname": "Иван",
-                "lastname": "Иванов",
-                "email": "iivanov@email.com",
-            }
-        )
-        response = self.client.post(
-            UsersTests.urls["user-list"],
-            correct_user_json,
-            content_type="application/json",
-        )
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_403_FORBIDDEN,
-            "Для анонимного пользователя должен возвращаться 404, "
-            f"а не {response.status_code}",
-        )
-
-        response = UsersTests.authorized_client.post(
-            UsersTests.urls["user-list"],
-            correct_user_json,
-            content_type="application/json",
-        )
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_403_FORBIDDEN,
-            "Для зарегистрированного пользователя должен возвращаться 404, "
-            f"а не {response.status_code}",
-        )
-        response = UsersTests.admin_client.post(
-            UsersTests.urls["user-list"],
-            correct_user_json,
-            content_type="application/json",
-        )
-        expected_data = {
+        user_data = {
             "username": "testuser",
-            "fisrtname": "Иван",
-            "lastname": "Иванов",
+            "first_name": "Иван",
+            "last_name": "Иванов",
             "email": "iivanov@email.com",
+            "password": "qwerty123da",
         }
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_201_CREATED,
-            "Для администратора должен возвращаться 201, "
-            f"а не {response.status_code}",
+        user_json = json.dumps(user_data)
+        response = self.client.post(
+            NAMES_PATHS["user-list"],
+            user_json,
+            content_type="application/json",
         )
-        self.assertJSONEqual(
-            str(response.content, encoding="utf8"),
-            correct_user_json,
-            "Неверный json ответ",
-        )
+        self.assertEqual(response.data["username"], user_data["username"])
+        self.assertEqual(response.data["email"], user_data["email"])
+        self.assertEqual(response.data["first_name"], user_data["first_name"])
+        self.assertEqual(response.data["last_name"], user_data["last_name"])
+        self.assertTrue(response.data.get("id", False))

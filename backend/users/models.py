@@ -10,12 +10,14 @@ class Role(models.TextChoices):
 
 class CustomUser(AbstractUser):
     email = models.EmailField(_("email address"), blank=False, unique=True)
-
+    first_name = models.CharField(_("first name"), max_length=150, blank=False)
+    last_name = models.CharField(_("last name"), max_length=150, blank=False)
     role = models.CharField(
         max_length=20,
         choices=Role.choices,
         default=Role.USER,
     )
+    REQUIRED_FIELDS = ["email", "first_name", "last_name", "password"]
 
     class Meta:
         verbose_name = "Пользователь"
