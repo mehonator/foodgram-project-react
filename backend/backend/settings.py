@@ -16,6 +16,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
+    "rest_framework.authtoken",
     "djoser",
     "users",
 ]
@@ -106,7 +108,15 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 DJOSER = {
     "HIDE_USERS": False,
-    'SERIALIZERS': {
-        "user": "users.serializers.CustomUserSerializer"
-    },
+    "SERIALIZERS": {
+        "user": "users.serializers.CustomUserSerializer",
+        'current_user': "users.serializers.CustomUserSerializer",
+        },
+    "LOGIN_FIELD": "email"
+}
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.TokenAuthentication",
+    ),
 }

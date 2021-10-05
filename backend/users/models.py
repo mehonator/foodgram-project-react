@@ -17,7 +17,13 @@ class CustomUser(AbstractUser):
         choices=Role.choices,
         default=Role.USER,
     )
-    REQUIRED_FIELDS = ["email", "first_name", "last_name", "password"]
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = [
+        "username",
+        "first_name",
+        "last_name",
+        "password",
+    ]
 
     class Meta:
         verbose_name = "Пользователь"
