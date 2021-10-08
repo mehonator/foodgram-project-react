@@ -1,8 +1,29 @@
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.contrib.auth import get_user_model
+from colorfield.fields import ColorField
+from autoslug import AutoSlugField
+from transliterate import detect_language
+from transliterate import slugify as trans_slugify
+from django.utils.text import slugify as dj_slugify
+
 
 CustomUser = get_user_model()
+
+
+class NotFoundLangException(Exception):
+    """Allow language:
+    Armenian
+    Bulgarian (beta)
+    Georgian
+    Greek
+    Macedonian (alpha)
+    Mongolian (alpha)
+    Russian
+    Serbian (alpha)
+    Ukrainian (beta)"""
+
+    pass
 
 
 class MeasurementUnit(models.Model):
@@ -53,3 +74,30 @@ class Recipe(models.Model):
 
     def __str__(self):
         return self.name
+
+
+def transliterate_slugify(text: str):
+    if text.isascii():
+        return dj_slugify(text)
+
+    if detect_language(text) is not None:
+        return trans_slugify(text)
+
+    raise NotFoundLangException("Invalid language")
+
+
+def get_name(instance):
+    return instance.name
+
+
+class Tag(models.Model):
+    name = models.CharField(
+        max_length=512, unique=True, blank=False, null=False
+    )
+    color = ColorField(blank=True, null=True)
+    slug = AutoSlugField(
+        populate_from=get_name,
+        slugify=transliterate_slugify,
+        unique=True,
+    )
+

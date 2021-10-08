@@ -1,3 +1,8 @@
 from django.contrib import admin
+from api.models import Tag
 
-# Register your models here.
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    pass
+
