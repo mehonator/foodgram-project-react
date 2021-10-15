@@ -3,8 +3,8 @@ from typing import List
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-SECRET_KEY = os.getenv("SECRET_KEY")
-DEBUG = "True" == os.getenv("DEBUG")
+SECRET_KEY = "4@^u7gw$q_upbr+c1gppr*@ah_e+*9%tdk4n0hrsp^=yl*2)w$"
+DEBUG = "True"
 
 ALLOWED_HOSTS: List[str] = []
 
@@ -102,10 +102,10 @@ USE_L10N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
-STATIC_ROOT = "/var/html/static/"
+STATIC_ROOT = "./static/"
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = "/var/html/media/"
+MEDIA_ROOT = "./media/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -119,6 +119,10 @@ DJOSER = {
 }
 
 REST_FRAMEWORK = {
+    "DEFAULT_PAGINATION_CLASS": (
+        "rest_framework.pagination.LimitOffsetPagination"
+    ),
+    "PAGE_SIZE": 100,
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework.authentication.TokenAuthentication",
     ),

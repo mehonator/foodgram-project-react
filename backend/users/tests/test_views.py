@@ -1,10 +1,10 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
-from users.views import Pagination
 from users.models import Role
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
+from backend.settings import REST_FRAMEWORK
 
 CustomUser = get_user_model()
 
@@ -29,6 +29,7 @@ NAMES_PATHS = {
     "reset_password": "/api/users/set_password/",
     "login": "/api/auth/token/login/",
     "logout": "/api/auth/token/logout/",
+    "my-subscriptions": "/api/users/subscriptions/"
 }
 
 
@@ -115,7 +116,7 @@ class UsersTests(TestCase):
 
     def test_pagination(self):
         num_users = 50
-        num_page = 50 // Pagination.default_limit
+        num_page = 50 // REST_FRAMEWORK["PAGE_SIZE"]
         self.generate_users(num_users)
 
         response = UsersTests.auth_user_client.get(NAMES_PATHS["user-list"])
@@ -180,3 +181,9 @@ class UsersTests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_my_subscriptions(self):
+        response = UsersTests.auth_user_client.get(
+            NAMES_PATHS["my-subscriptions"],
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
