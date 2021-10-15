@@ -35,18 +35,8 @@ class MeasurementUnit(models.Model):
         return self.name
 
 
-class Amount(models.Model):
-    amount = models.FloatField(validators=[MinValueValidator(0.0)])
-
-    def __str__(self):
-        return str(self.amount)
-
-
 class Ingredient(models.Model):
-    name = models.CharField(
-        max_length=512, unique=True, blank=False, null=False
-    )
-    amount = models.ManyToManyField(Amount, related_name="ingredients")
+    name = models.CharField(max_length=512, blank=False, null=False)
     measurement_unit = models.ForeignKey(
         MeasurementUnit,
         related_name="ingredients",
@@ -56,24 +46,7 @@ class Ingredient(models.Model):
     )
 
     def __str__(self):
-        return f"{self.name} {self.amount} {self.unit.short_name}"
-
-
-class Recipe(models.Model):
-    name = models.CharField(
-        max_length=512, unique=True, blank=False, null=False
-    )
-    ingredients = models.ManyToManyField(Ingredient, related_name="recipes")
-    author = models.ForeignKey(
-        CustomUser,
-        related_name="recipes",
-        blank=False,
-        null=False,
-        on_delete=models.CASCADE,
-    )
-
-    def __str__(self):
-        return self.name
+        return f"{self.name} {self.measurement_unit.name}"
 
 
 def transliterate_slugify(text: str):
@@ -101,3 +74,75 @@ class Tag(models.Model):
         unique=True,
     )
 
+
+class Recipe(models.Model):
+    name = models.CharField(
+        verbose_name="Название",
+        max_length=512,
+        unique=True,
+        blank=False,
+        null=False,
+    )
+    ingredients = models.ManyToManyField(
+        Ingredient, verbose_name="Ингредиенты", related_name="recipes"
+    )
+    tags = models.ManyToManyField(
+        Tag, verbose_name="Тэги", related_name="recipes", blank=True
+    )
+    author = models.ForeignKey(
+        CustomUser,
+        verbose_name="Автор",
+        related_name="recipes",
+        blank=False,
+        null=False,
+        on_delete=models.CASCADE,
+    )
+    users_chose_as_favorite = models.ManyToManyField(
+        CustomUser,
+        verbose_name="Избранные рецепты",
+        related_name="favorite_recipes",
+        blank=True,
+    )
+    users_put_in_cart = models.ManyToManyField(
+        CustomUser,
+        verbose_name="Рецепты в корзине",
+        related_name="shopping_cart_recipes",
+        blank=True,
+    )
+    image = models.ImageField(
+        upload_to=r'recipes/%Y/%m/%d/',
+        verbose_name="Изображение",
+        unique=False,
+        blank=True,
+        null=True,
+    )
+    text = models.TextField(verbose_name="Описание", blank=False, null=False)
+    cooking_time = models.IntegerField(
+        verbose_name="Время приготовления в минутах",
+        blank=False,
+        null=False,
+    )
+
+    def __str__(self):
+        return self.name
+
+
+class AmountIngredient(models.Model):
+    amount = models.FloatField(validators=[MinValueValidator(0.0)])
+    recipe = models.ForeignKey(
+        Recipe,
+        related_name="amounts_ingredients",
+        null=False,
+        blank=False,
+        on_delete=models.CASCADE,
+    )
+    ingredient = models.ForeignKey(
+        Ingredient,
+        related_name="amounts_ingredients",
+        null=False,
+        blank=False,
+        on_delete=models.PROTECT,
+    )
+
+    def __str__(self):
+        return str(self.amount)
