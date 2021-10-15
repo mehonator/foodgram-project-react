@@ -20,13 +20,12 @@ class CustomUserSerializer(UserSerializer):
         )
 
     def get_is_subscribed(self, current_user):
-        user_from_request = self.context['request'].user
+        user_from_request = self.context["request"].user
         return user_from_request.follower.filter(leader=current_user).exists()
 
 
 class SubscriptionSerializer(serializers.ModelSerializer):
-    leader = UserSerializer()
-    # рецепты
+    leader = CustomUserSerializer()
 
 
 class SubscriptionsSerializer(serializers.ModelSerializer):
