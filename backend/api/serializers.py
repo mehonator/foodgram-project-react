@@ -3,10 +3,16 @@ from django.db.models.query import QuerySet
 from django.shortcuts import get_list_or_404, get_object_or_404
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
+from rest_framework.fields import CharField
 from users.serializers import CustomUserSerializer
 
-from api.models import (AmountIngredient, Ingredient, MeasurementUnit, Recipe,
-                        Tag)
+from api.models import (
+    AmountIngredient,
+    Ingredient,
+    MeasurementUnit,
+    Recipe,
+    Tag,
+)
 
 
 class IngredientSerializer(serializers.ModelSerializer):
@@ -38,18 +44,17 @@ class TagSerializer(serializers.ModelSerializer):
         optional_fields = ["color", "slug"]
 
 
-class IngredientRecipeSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(required=True)
-    name = serializers.CharField(required=False)
-    measurement_unit = serializers.SlugRelatedField(
-        slug_field="name",
-        queryset=MeasurementUnit.objects.all(),
-        required=False,
+class AmountIngredientRecipeSerializer(serializers.ModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(
+        read_only=True, source="ingredient"
     )
-    amount = serializers.SerializerMethodField()
+    name = CharField(read_only=True, source="ingredient.name")
+    measurement_unit = CharField(
+        read_only=True, source="ingredient.measurement_unit"
+    )
 
     class Meta:
-        model = Ingredient
+        model = AmountIngredient
         fields = (
             "id",
             "name",
@@ -57,38 +62,18 @@ class IngredientRecipeSerializer(serializers.ModelSerializer):
             "amount",
         )
 
-    def get_amount(self, ingredient: Ingredient) -> float:
-        # list - Queryset, retrieve - instance
-        if isinstance(self.root.instance, QuerySet):
-            recipe: Recipe = self.root.instance[0]
-        else:
-            recipe: Recipe = self.root.instance
-        amount: AmountIngredient = ingredient.amounts.get(recipe=recipe)
-        return amount.amount
 
-
-class IngredientRecipeCreateUpdateSerializer(serializers.ModelSerializer):
+class AmountIngredientRecipeCreateUpdateSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=True)
-    name = serializers.CharField(required=False)
-    measurement_unit = serializers.SlugRelatedField(
-        slug_field="name", queryset=Ingredient.objects.all(), required=False
-    )
     amount = serializers.FloatField(required=True)
-
-    class Meta:
-        model = Ingredient
-        fields = (
-            "id",
-            "name",
-            "measurement_unit",
-            "amount",
-        )
 
 
 class RecipeSerializer(serializers.ModelSerializer):
     author = CustomUserSerializer(required=False)
     tags = TagSerializer(many=True)
-    ingredients = IngredientRecipeSerializer(many=True)
+    ingredients = AmountIngredientRecipeSerializer(
+        source="amounts_ingredients", many=True
+    )
     is_favorited = serializers.SerializerMethodField()
     is_in_shopping_cart = serializers.SerializerMethodField()
     image = Base64ImageField()
@@ -120,13 +105,13 @@ class RecipeSerializer(serializers.ModelSerializer):
 
 
 class RecipeCreateUpdateSerializer(RecipeSerializer):
-    ingredients = IngredientRecipeCreateUpdateSerializer(many=True)
+    ingredients = AmountIngredientRecipeCreateUpdateSerializer(many=True)
 
     def create(self, validated_data):
         # the transaction is needed to rollback the creation of amounts
         with transaction.atomic():
-            pks_tags = [ord_dict["id"] for ord_dict in validated_data["tags"]]
-            tags = get_list_or_404(Tag, pk__in=pks_tags)
+            ids_tags = [ord_dict["id"] for ord_dict in validated_data["tags"]]
+            tags = get_list_or_404(Tag, pk__in=ids_tags)
 
             recipe = Recipe.objects.create(
                 author=self.context["request"].user,
@@ -136,10 +121,6 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
                 cooking_time=validated_data["cooking_time"],
             )
 
-            pks_ingredient = [
-                ord_dict["id"] for ord_dict in validated_data["ingredients"]
-            ]
-            ingredients = get_list_or_404(Ingredient, pk__in=pks_ingredient)
             amounts_instance = []
             for ingredient_data in validated_data["ingredients"]:
                 amount = ingredient_data["amount"]
@@ -154,7 +135,6 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
                 )
             AmountIngredient.objects.bulk_create(amounts_instance)
             recipe.tags.set(tags)
-            recipe.ingredients.set(ingredients)
 
         return recipe
 
@@ -164,33 +144,8 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
             pks_tags = [ord_dict["id"] for ord_dict in validated_data["tags"]]
             tags = get_list_or_404(Tag, pk__in=pks_tags)
 
-            required_ingredient_pks = [
-                ord_dict["id"] for ord_dict in validated_data["ingredients"]
-            ]
-
-            old_amounts_intstance = recipe.amounts.all()
-
-            del_amount_intstance = old_amounts_intstance.filter(
-                recipe=recipe
-            ).exclude(ingredient__id__in=required_ingredient_pks)
-            del_amount_intstance.delete()
-
-            unchanged_amounts_intstance = (
-                old_amounts_intstance.select_related()
-                .only("ingredient__id")
-                .filter(
-                    recipe=recipe, ingredient__pk__in=required_ingredient_pks
-                )
-            )
-
-            unchanged_ingredients_pks = [
-                amount.ingredient.id for amount in unchanged_amounts_intstance
-            ]
-            new_ingredients_pks = list(
-                set(required_ingredient_pks).difference(
-                    set(unchanged_ingredients_pks)
-                )
-            )
+            old_amounts_intstance = recipe.amounts_ingredients.all()
+            old_amounts_intstance.delete()
 
             new_amounts_intstance = []
             for ingredient_data in validated_data["ingredients"]:
@@ -205,17 +160,12 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
                     )
                 )
 
-            new_ingredients = get_list_or_404(
-                Ingredient, pk__in=new_ingredients_pks
-            )
             AmountIngredient.objects.bulk_create(new_amounts_intstance)
-            recipe.author = self.context["request"].user
             recipe.name = validated_data["name"]
             recipe.image = validated_data["image"]
             recipe.text = validated_data["text"]
             recipe.cooking_time = validated_data["cooking_time"]
             recipe.tags.set(tags)
-            recipe.ingredients.set(new_ingredients)
             recipe.save()
 
         return recipe

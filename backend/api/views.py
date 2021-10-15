@@ -31,6 +31,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
         create_serializer.is_valid(raise_exception=True)
         recipe = create_serializer.save(author=self.request.user)
+
         retrieve_serializer = RecipeSerializer(
             instance=recipe, *args, **kwargs
         )
@@ -42,15 +43,21 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
 
     def update(self, request, *args, **kwargs):
+        kwargs.setdefault("context", self.get_serializer_context())
+        kwargs.pop("pk")
+
         instance = self.get_object()
         update_serializer = RecipeCreateUpdateSerializer(
-            instance, data=request.data, partial=False,
+            instance,
+            data=request.data,
+            partial=False,
         )
         update_serializer.is_valid(raise_exception=True)
         instance = update_serializer.save(author=self.request.user)
         retrieve_serializer = RecipeSerializer(
-            instance=instance, *args, **kwargs
+            instance=instance, data=request.data, *args, **kwargs
         )
+        retrieve_serializer.is_valid(raise_exception=True)
 
         if getattr(instance, "_prefetched_objects_cache", None):
             # If 'prefetch_related' has been applied to a queryset, we need to
