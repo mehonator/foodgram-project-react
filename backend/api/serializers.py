@@ -6,13 +6,8 @@ from rest_framework import serializers
 from rest_framework.fields import CharField
 from users.serializers import CustomUserSerializer
 
-from api.models import (
-    AmountIngredient,
-    Ingredient,
-    MeasurementUnit,
-    Recipe,
-    Tag,
-)
+from api.models import (AmountIngredient, Ingredient, MeasurementUnit, Recipe,
+                        Tag)
 
 
 class IngredientSerializer(serializers.ModelSerializer):
