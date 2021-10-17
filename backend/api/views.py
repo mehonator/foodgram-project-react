@@ -1,16 +1,12 @@
-from rest_framework import filters, mixins, viewsets
+from rest_framework import filters, mixins, status, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework import status
 from rest_framework.response import Response
 
 from api.models import Ingredient, Recipe, Tag
 from api.permissions import IsAuthor
-from api.serializers import (
-    IngredientSerializer,
-    RecipeCreateUpdateSerializer,
-    RecipeSerializer,
-    TagSerializer,
-)
+from api.serializers import (IngredientSerializer,
+                             RecipeCreateUpdateSerializer, RecipeSerializer,
+                             TagSerializer)
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
