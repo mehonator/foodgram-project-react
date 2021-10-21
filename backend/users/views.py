@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
-from djoser.views import UserViewSet
 from rest_framework.decorators import action
+
+from djoser.views import UserViewSet
 
 CustomUser = get_user_model()
 
