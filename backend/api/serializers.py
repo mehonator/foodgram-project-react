@@ -1,13 +1,11 @@
 from django.db import transaction
-from django.db.models.query import QuerySet
 from django.shortcuts import get_list_or_404, get_object_or_404
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 from rest_framework.fields import CharField
 from users.serializers import CustomUserSerializer
 
-from api.models import (AmountIngredient, Ingredient, MeasurementUnit, Recipe,
-                        Tag)
+from api.models import AmountIngredient, CustomUser, Ingredient, Recipe, Tag
 
 
 class IngredientSerializer(serializers.ModelSerializer):
@@ -164,3 +162,36 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
             recipe.save()
 
         return recipe
+
+
+class LeaderSubscriptionSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(read_only=True)
+    id = serializers.IntegerField(read_only=True)
+    username = serializers.CharField(read_only=True)
+    first_name = serializers.CharField(read_only=True)
+    last_name = serializers.CharField(read_only=True)
+    is_subscribed = serializers.SerializerMethodField()
+    recipes = RecipeSerializer(many=True)
+    recipes_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomUser
+        fields = (
+            "email",
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "is_subscribed",
+            "recipes",
+            "recipes_count",
+        )
+
+    def get_is_subscribed(self, leader) -> bool:
+        request_user = self.context["request"].user
+        return leader.leader_subscriptions.filter(
+            follower=request_user
+        ).exists()
+
+    def get_recipes_count(self, leader) -> int:
+        return leader.recipes.count()
