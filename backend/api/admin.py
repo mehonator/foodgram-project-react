@@ -10,7 +10,7 @@ class AmountAdmin(admin.ModelAdmin):
 
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
-    pass
+    readonly_fields = ("slug",)
 
 
 @admin.register(Ingredient)
@@ -20,4 +20,4 @@ class IngredientAdmin(admin.ModelAdmin):
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
-    pass
+    readonly_fields = ("pub_date",)
