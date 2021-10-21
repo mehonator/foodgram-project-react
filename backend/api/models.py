@@ -1,12 +1,13 @@
-from django.db import models
-from django.core.validators import MinValueValidator
-from django.contrib.auth import get_user_model
-from colorfield.fields import ColorField
 from autoslug import AutoSlugField
+from colorfield.fields import ColorField
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
+from django.db import models
+from django.utils.text import slugify as dj_slugify
+from django.utils.translation import gettext_lazy as _
 from transliterate import detect_language
 from transliterate import slugify as trans_slugify
-from django.utils.text import slugify as dj_slugify
-
 
 CustomUser = get_user_model()
 
@@ -28,7 +29,11 @@ class NotFoundLangException(Exception):
 
 class MeasurementUnit(models.Model):
     name = models.CharField(
-        max_length=128, unique=True, blank=False, null=False
+        verbose_name="Название",
+        max_length=128,
+        unique=True,
+        blank=False,
+        null=False,
     )
 
     def __str__(self):
@@ -36,9 +41,12 @@ class MeasurementUnit(models.Model):
 
 
 class Ingredient(models.Model):
-    name = models.CharField(max_length=512, blank=False, null=False)
+    name = models.CharField(
+        verbose_name="Название", max_length=512, blank=False, null=False
+    )
     measurement_unit = models.ForeignKey(
         MeasurementUnit,
+        verbose_name="Единица измерения",
         related_name="ingredients",
         null=False,
         blank=False,
@@ -65,14 +73,22 @@ def get_name(instance):
 
 class Tag(models.Model):
     name = models.CharField(
-        max_length=512, unique=True, blank=False, null=False
+        verbose_name="Название",
+        max_length=512,
+        unique=True,
+        blank=False,
+        null=False,
     )
-    color = ColorField(blank=True, null=True)
+    color = ColorField(verbose_name="Цвет", blank=True, null=True)
     slug = AutoSlugField(
+        verbose_name="Слаг",
         populate_from=get_name,
         slugify=transliterate_slugify,
         unique=True,
     )
+
+    def __str__(self):
+        return self.name
 
 
 class Recipe(models.Model):
@@ -107,7 +123,7 @@ class Recipe(models.Model):
         blank=True,
     )
     image = models.ImageField(
-        upload_to=r'recipes/%Y/%m/%d/',
+        upload_to=r"recipes/%Y/%m/%d/",
         verbose_name="Изображение",
         unique=False,
         blank=True,
@@ -118,6 +134,10 @@ class Recipe(models.Model):
         verbose_name="Время приготовления в минутах",
         blank=False,
         null=False,
+    )
+    pub_date = models.DateTimeField(
+        verbose_name="Дата публикации",
+        auto_now_add=True,
     )
 
     def __str__(self):
@@ -143,3 +163,28 @@ class AmountIngredient(models.Model):
 
     def __str__(self):
         return str(self.amount)
+
+
+class Subscription(models.Model):
+    follower = models.ForeignKey(
+        CustomUser,
+        related_name="follower_subscriptions",
+        on_delete=models.CASCADE,
+    )
+    leader = models.ForeignKey(
+        CustomUser,
+        related_name="leader_subscriptions",
+        on_delete=models.CASCADE,
+    )
+
+    class Meta:
+        unique_together = (("follower", "leader"),)
+
+    def clean(self):
+        if self.follower == self.leader:
+            errors = {}
+            errors["follower"] = _("User cannot subscribe to himself")
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return f"{self.follower.get_username()}-{self.leader.get_username()}"
