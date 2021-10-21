@@ -1,5 +1,4 @@
 import base64
-import pdb
 from typing import List
 import json
 from api.models import (
@@ -8,6 +7,12 @@ from api.models import (
     MeasurementUnit,
     Recipe,
     Tag,
+)
+from api.tests.factories import (
+    MeasurementUnitFactory,
+    TagFactory,
+    IngredientFactory,
+    NUMBER_MEASUREMENT_UNITS,
 )
 from django.contrib.auth import get_user_model
 from django.core.files.images import ImageFile
@@ -35,9 +40,14 @@ AUTHOR = {
     "password": "password_author",
 }
 
-NAMES_URLS = {
+
+URLS = {
     "ingredients": "/api/ingredients/",
+    "ingredients-list": "api:ingredients-list",
+    "ingredients-detail": "api:ingredients-detail",
     "tags": "/api/tags/",
+    "tags-list": "api:tags-list",
+    "tags-detail": "api:tags-detail",
     "recipes-list": "api:recipes-list",
     "recipes-detail": "api:recipes-detail",
 }
@@ -69,6 +79,21 @@ IMAGE_BASE64 = (
     "W50AENyZWF0ZWQgd2l0aCBHSU1QV4EOFwAAAAxJREFUCNdj+P//PwAF/gL+3M"
     "xZ5wAAAABJRU5ErkJggg=="
 )
+
+
+def generate_users(number) -> List[CustomUser]:
+    users = []
+    for i in range(len(number)):
+        users.append(
+            CustomUser.objects.create_user(
+                username=f"Test_user{i}",
+                email=f"test_user{i}@email.com",
+                first_name=f"first_name{i}",
+                last_name=f"last_name{i}",
+                password=f"password{i}",
+            )
+        )
+    return users
 
 
 def create_get_ingredients() -> List[Ingredient]:
@@ -110,34 +135,49 @@ class IngredientsTests(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.client = get_auth_clien()
-        create_get_ingredients()
+        cls.NUMBER_INGREDIENTS = 10
 
-    def test_get_ingredients(self):
-        response = IngredientsTests.client.get(NAMES_URLS["ingredients"])
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        expected_list_ingredients = {
-            "count": 3,
-            "next": None,
-            "previous": None,
-            "results": [
-                {"id": 1, "name": "мука", "measurement_unit": "КГ"},
-                {"id": 2, "name": "молоко", "measurement_unit": "Л"},
-                {"id": 3, "name": "сахар", "measurement_unit": "г"},
-            ],
-        }
-        self.assertJSONEqual(
-            str(response.content, "utf8"),
-            expected_list_ingredients,
+        MeasurementUnitFactory.create_batch(NUMBER_MEASUREMENT_UNITS)
+        cls.ingredients = IngredientFactory.create_batch(
+            cls.NUMBER_INGREDIENTS
         )
 
+    def test_get_list(self):
         response = IngredientsTests.client.get(
-            NAMES_URLS["ingredients"] + "1/"
+            reverse(URLS["ingredients-list"])
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        expected_result = []
+        for ingredient in IngredientsTests.ingredients:
+            expected_result.append(
+                {
+                    "id": ingredient.id,
+                    "name": ingredient.name,
+                    "measurement_unit": ingredient.measurement_unit.name,
+                }
+            )
+        expected_response_data = {
+            "count": IngredientsTests.NUMBER_INGREDIENTS,
+            "next": None,
+            "previous": None,
+            "results": expected_result,
+        }
+
+        self.assertJSONEqual(
+            str(response.content, "utf8"),
+            expected_response_data,
+        )
+
+    def test_get_detail(self):
+        ingredient = IngredientsTests.ingredients[0]
+        response = IngredientsTests.client.get(
+            reverse(URLS["ingredients-detail"], kwargs={"pk": ingredient.id})
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         expected_ingredient = {
-            "id": 1,
-            "name": "мука",
-            "measurement_unit": "КГ",
+            "id": ingredient.id,
+            "name": ingredient.name,
+            "measurement_unit": ingredient.measurement_unit.name,
         }
         self.assertJSONEqual(
             str(response.content, "utf8"),
@@ -145,8 +185,9 @@ class IngredientsTests(TestCase):
         )
 
     def test_search_ingredients(self):
+        ingredient = IngredientsTests.ingredients[0]
         response = IngredientsTests.client.get(
-            NAMES_URLS["ingredients"], {"search": "му"}
+            reverse(URLS["ingredients-list"]), {"search": ingredient.name}
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         expected_ingredient = {
@@ -155,9 +196,9 @@ class IngredientsTests(TestCase):
             "previous": None,
             "results": [
                 {
-                    "id": 1,
-                    "name": "мука",
-                    "measurement_unit": "КГ",
+                    "id": ingredient.id,
+                    "name": ingredient.name,
+                    "measurement_unit": ingredient.measurement_unit.name,
                 }
             ],
         }
@@ -172,53 +213,50 @@ class TagsTests(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.client = get_auth_clien()
-        create_get_tags()
+        cls.number_tags = 5
+        cls.tags = TagFactory.create_batch(cls.number_tags)
 
     def test_tags_list(self):
-        response = IngredientsTests.client.get(NAMES_URLS["tags"])
+        response = IngredientsTests.client.get(URLS["tags"])
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        expected_list_ingredients = {
-            "count": 3,
+
+        expected_result = []
+        for tag in TagsTests.tags:
+            expected_result.append(
+                {
+                    "id": tag.id,
+                    "color": tag.color,
+                    "name": tag.name,
+                    "slug": tag.slug,
+                }
+            )
+        expected_response_data = {
+            "count": TagsTests.number_tags,
             "next": None,
             "previous": None,
-            "results": [
-                {
-                    "id": 1,
-                    "color": "#1f00eb",
-                    "name": "Новый год",
-                    "slug": "novyj-god",
-                },
-                {
-                    "id": 2,
-                    "color": "#ff0505",
-                    "name": "Майские",
-                    "slug": "majskie",
-                },
-                {
-                    "id": 3,
-                    "color": "#fff705",
-                    "name": "День рождения",
-                    "slug": "den-rozhdenija",
-                },
-            ],
+            "results": expected_result,
         }
         self.assertJSONEqual(
             str(response.content, "utf8"),
-            expected_list_ingredients,
+            expected_response_data,
         )
 
     def test_tag_retrieve(self):
-        response = IngredientsTests.client.get(NAMES_URLS["tags"] + "1/")
+        tag = TagsTests.tags[0]
+        response = IngredientsTests.client.get(
+            reverse(URLS["tags-detail"], kwargs={"pk": tag.id})
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        expected_list_ingredients = {
-            "id": 1,
-            "color": "#1f00eb",
-            "name": "Новый год",
-            "slug": "novyj-god",
+
+        expected_tag = {
+            "id": tag.id,
+            "color": tag.color,
+            "name": tag.name,
+            "slug": tag.slug,
         }
         self.assertJSONEqual(
             str(response.content, "utf8"),
-            expected_list_ingredients,
+            expected_tag,
         )
 
 
@@ -260,7 +298,7 @@ class RecipesTests(TestCase):
             )
 
     def test_list(self):
-        response = RecipesTests.client.get(reverse(NAMES_URLS["recipes-list"]))
+        response = RecipesTests.client.get(reverse(URLS["recipes-list"]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         expected_recipes = {
             "count": 1,
@@ -331,9 +369,21 @@ class RecipesTests(TestCase):
             expected_recipes,
         )
 
+    def test_filters(self):
+        response = RecipesTests.client.get(
+            reverse(URLS["recipes-list"]), tags="zavtrak"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        expected_recipes = {}
+
+        response = RecipesTests.client.get(
+            reverse(URLS["recipes-list"]), tags="non-existent-slug"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
     def test_detail(self):
         response = RecipesTests.client.get(
-            reverse(NAMES_URLS["recipes-detail"], args=[1])
+            reverse(URLS["recipes-detail"], args=[1])
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         expected_recipes = {
@@ -452,7 +502,7 @@ class RecipesTests(TestCase):
             "cooking_time": 42,
         }
         response = RecipesTests.author_client.post(
-            path=reverse(NAMES_URLS["recipes-list"]),
+            path=reverse(URLS["recipes-list"]),
             data=json.dumps(create_data),
             content_type="application/json",
         )
@@ -516,7 +566,7 @@ class RecipesTests(TestCase):
             "cooking_time": 10,
         }
         response = RecipesTests.client.put(
-            reverse(NAMES_URLS["recipes-detail"], args=[1]),
+            reverse(URLS["recipes-detail"], args=[1]),
             data=json.dumps(update_data),
             content_type="application/json",
         )
@@ -527,7 +577,7 @@ class RecipesTests(TestCase):
         )
 
         response = RecipesTests.author_client.put(
-            path=reverse(NAMES_URLS["recipes-detail"], args=[1]),
+            path=reverse(URLS["recipes-detail"], args=[1]),
             data=json.dumps(update_data),
             content_type="application/json",
         )
@@ -546,7 +596,7 @@ class RecipesTests(TestCase):
 
     def test_delete(self):
         response = RecipesTests.client.delete(
-            path=reverse(NAMES_URLS["recipes-detail"], args=[1]),
+            path=reverse(URLS["recipes-detail"], args=[1]),
         )
         self.assertEqual(
             response.status_code,
@@ -555,9 +605,13 @@ class RecipesTests(TestCase):
         )
 
         response = RecipesTests.author_client.delete(
-            path=reverse(NAMES_URLS["recipes-detail"], args=[1]),
+            path=reverse(URLS["recipes-detail"], args=[1]),
         )
         self.assertEqual(
             response.status_code,
             status.HTTP_204_NO_CONTENT,
         )
+
+
+class SubscriptionTest(TestCase):
+    pass
