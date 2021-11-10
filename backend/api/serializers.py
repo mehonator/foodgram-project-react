@@ -38,9 +38,6 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 class AmountIngredientRecipeSerializer(serializers.ModelSerializer):
-    id = serializers.PrimaryKeyRelatedField(
-        read_only=True, source="ingredient"
-    )
     name = CharField(read_only=True, source="ingredient.name")
     measurement_unit = CharField(
         read_only=True, source="ingredient.measurement_unit"
@@ -59,6 +56,19 @@ class AmountIngredientRecipeSerializer(serializers.ModelSerializer):
 class AmountIngredientRecipeCreateUpdateSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=True)
     amount = serializers.FloatField(required=True)
+
+
+class RecipeMinifiedSerializer(serializers.ModelSerializer):
+    image = Base64ImageField()
+
+    class Meta:
+        model = Recipe
+        fields = (
+            "id",
+            "name",
+            "image",
+            "cooking_time",
+        )
 
 
 class RecipeSerializer(serializers.ModelSerializer):
