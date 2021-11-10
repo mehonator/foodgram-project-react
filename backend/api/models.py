@@ -140,6 +140,9 @@ class Recipe(models.Model):
         auto_now_add=True,
     )
 
+    class Meta:
+        ordering = ["-pub_date"]
+
     def __str__(self):
         return self.name
 
@@ -160,6 +163,9 @@ class AmountIngredient(models.Model):
         blank=False,
         on_delete=models.PROTECT,
     )
+
+    class Meta:
+        ordering = ["recipe", "-amount", "ingredient"]
 
     def __str__(self):
         return str(self.amount)
