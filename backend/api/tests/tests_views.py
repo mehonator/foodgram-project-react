@@ -1,25 +1,29 @@
 import base64
-from typing import List
 import json
-from api.models import (
-    AmountIngredient,
-    Ingredient,
-    MeasurementUnit,
-    Recipe,
-    Tag,
-)
+import shutil
+from os.path import basename
+from typing import List
+
+from api.models import Ingredient, MeasurementUnit, Recipe, Tag
+from api.serializers import RecipeMinifiedSerializer
 from api.tests.factories import (
-    MeasurementUnitFactory,
-    TagFactory,
-    IngredientFactory,
     NUMBER_MEASUREMENT_UNITS,
+    AmountIngredientFactory,
+    IngredientFactory,
+    MeasurementUnitFactory,
+    RecipeFactory,
+    TagFactory,
 )
+from api.views import IsFavoritedEnum, IsShopingCartEnum
 from django.contrib.auth import get_user_model
 from django.core.files.images import ImageFile
+from django.shortcuts import get_object_or_404
 from django.test import TestCase
+from django.test.utils import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+from users.tests.factories import CustomUserFactory
 
 CustomUser = get_user_model()
 
@@ -50,6 +54,7 @@ URLS = {
     "tags-detail": "api:tags-detail",
     "recipes-list": "api:recipes-list",
     "recipes-detail": "api:recipes-detail",
+    "recipes-favorite": "api:recipes-favorite",
 }
 
 MEASUREMENT_UNITS = ["КГ", "Л", "г"]
@@ -80,41 +85,7 @@ IMAGE_BASE64 = (
     "xZ5wAAAABJRU5ErkJggg=="
 )
 
-
-def generate_users(number) -> List[CustomUser]:
-    users = []
-    for i in range(len(number)):
-        users.append(
-            CustomUser.objects.create_user(
-                username=f"Test_user{i}",
-                email=f"test_user{i}@email.com",
-                first_name=f"first_name{i}",
-                last_name=f"last_name{i}",
-                password=f"password{i}",
-            )
-        )
-    return users
-
-
-def create_get_ingredients() -> List[Ingredient]:
-    for measurement_unit in MEASUREMENT_UNITS:
-        MeasurementUnit.objects.create(name=measurement_unit)
-    ingredients = []
-    for ingredient in INGREDIENTS:
-        unit = MeasurementUnit.objects.get(name=ingredient["measurement_unit"])
-        ingredients.append(
-            Ingredient.objects.create(
-                name=ingredient["name"], measurement_unit=unit
-            )
-        )
-    return ingredients
-
-
-def create_get_tags() -> List[Tag]:
-    tags = []
-    for tag in TAGS:
-        tags.append(Tag.objects.create(**tag))
-    return tags
+MEDIA_PATH = "./test_media/"
 
 
 def get_auth_clien() -> APIClient:
@@ -220,21 +191,12 @@ class TagsTests(TestCase):
         response = IngredientsTests.client.get(URLS["tags"])
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        expected_result = []
-        for tag in TagsTests.tags:
-            expected_result.append(
-                {
-                    "id": tag.id,
-                    "color": tag.color,
-                    "name": tag.name,
-                    "slug": tag.slug,
-                }
-            )
+        tags_dicts = [TagFactory.to_dict(tag) for tag in TagsTests.tags]
         expected_response_data = {
             "count": TagsTests.number_tags,
             "next": None,
             "previous": None,
-            "results": expected_result,
+            "results": tags_dicts,
         }
         self.assertJSONEqual(
             str(response.content, "utf8"),
@@ -248,27 +210,70 @@ class TagsTests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        expected_tag = {
-            "id": tag.id,
-            "color": tag.color,
-            "name": tag.name,
-            "slug": tag.slug,
-        }
+        expected_data = TagFactory.to_dict(tag)
         self.assertJSONEqual(
             str(response.content, "utf8"),
-            expected_tag,
+            expected_data,
         )
 
 
+@override_settings(MEDIA_ROOT=MEDIA_PATH)
 class RecipesTests(TestCase):
+    NUMBER_RECIPES = 2
+    NUMBER_TAGS_IN_SET = 2
+    NUMBER_FAVORITE_USERS = 2
+    NUMBER_AMOUNTS = 2
+    NUMBER_INGREDIENTS = 2
+    NUMBER_MEASUREMENT_UNIT = 2
+
+    @classmethod
+    def create_recipes(cls):
+        MeasurementUnitFactory.create_batch(cls.NUMBER_MEASUREMENT_UNIT)
+        IngredientFactory.create_batch(cls.NUMBER_INGREDIENTS)
+        same_set_tags = TagFactory.create_batch(cls.NUMBER_TAGS_IN_SET)
+        same_set_favorite_users = CustomUserFactory.create_batch(
+            cls.NUMBER_FAVORITE_USERS
+        )
+        image_format, image_str = IMAGE_BASE64.split(";base64,")
+        image_bytes = base64.b64decode(image_str)
+        image_content_file = ImageFile(base64.b64decode(image_bytes))
+
+        for _ in range(cls.NUMBER_RECIPES):
+            different_set_tags = TagFactory.create_batch(
+                cls.NUMBER_TAGS_IN_SET
+            )
+            different_set_users = CustomUserFactory.create_batch(
+                cls.NUMBER_FAVORITE_USERS
+            )
+            tags = same_set_tags + different_set_tags
+            users_chose_as_favorite = (
+                same_set_favorite_users + different_set_users
+            )
+
+            recipe = RecipeFactory.create(
+                tags=tags,
+                users_chose_as_favorite=users_chose_as_favorite,
+                image=image_content_file,
+            )
+
+            for _ in range(cls.NUMBER_AMOUNTS):
+                AmountIngredientFactory.create(recipe=recipe)
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.client = get_auth_clien()
-        ingredients = create_get_ingredients()
 
-        tags = create_get_tags()
-        author = CustomUser.objects.create_user(
+        cls.user = CustomUser.objects.create_user(
+            username=USER["username"],
+            email=USER["email"],
+            first_name=USER["first_name"],
+            last_name=USER["last_name"],
+            password=USER["password"],
+        )
+        cls.user_client = APIClient()
+        cls.user_client.force_authenticate(user=cls.user)
+
+        cls.author = CustomUser.objects.create_user(
             username=AUTHOR["username"],
             email=AUTHOR["email"],
             first_name=AUTHOR["first_name"],
@@ -277,172 +282,207 @@ class RecipesTests(TestCase):
         )
 
         cls.author_client = APIClient()
-        cls.author_client.force_authenticate(user=author)
+        cls.author_client.force_authenticate(user=cls.author)
+        cls.recipe = RecipeFactory.create(author=cls.author)
 
-        image_format, image_str = IMAGE_BASE64.split(";base64,")
-        image_bytes = base64.b64decode(image_str)
-        image_content_file = ImageFile(base64.b64decode(image_bytes))
-        recipe = Recipe.objects.create(
-            name="рецепт",
-            author=author,
-            image=image_content_file,
-            text="хоп-хоп и готово!",
-            cooking_time=1,
-        )
-        recipe.tags.set(tags)
-        recipe.save()
+        RecipesTests.create_recipes()
 
-        for ingredient in ingredients:
-            AmountIngredient.objects.create(
-                amount=1, recipe=recipe, ingredient=ingredient
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(MEDIA_PATH)
+
+    def get_recipe_img_basename(self, recipe: dict) -> dict:
+        recipe_img_basename = recipe.copy()
+        image_path = recipe["image"]
+        # при отстутсвии файла response возвращает None, модель ""
+        # всё приводим к None
+        if image_path in ("", None):
+            recipe_img_basename["image"] = None
+        else:
+            recipe_img_basename["image"] = basename(image_path)
+        return recipe_img_basename
+
+    def get_prepared_recipes(
+        self, recipes: List[dict], request_user: CustomUser
+    ) -> List[dict]:
+        recipes_img_basename = []
+        for recipe in recipes:
+            recipe_dict = RecipeFactory.detail_to_dict(recipe, request_user)
+            # Меняем полное название файла, на название без пути
+            # т.к. путь из модели и reponse отличаються
+            recipe_img_basename = self.get_recipe_img_basename(recipe_dict)
+            recipes_img_basename.append(recipe_img_basename)
+        return recipes_img_basename
+
+    def get_prepared_response_data(self, response):
+        results_image_basename = response.data["results"].copy()
+        for i, recipe_dict in enumerate(results_image_basename):
+            # Меняем полное название файла, на название без пути
+            # т.к. путь из модели и reponse отличаються
+            results_image_basename[i] = self.get_recipe_img_basename(
+                recipe_dict
             )
+        response_data_image_basename = response.data.copy()
+        response_data_image_basename["results"] = results_image_basename
+        return json.dumps(response_data_image_basename)
 
     def test_list(self):
-        response = RecipesTests.client.get(reverse(URLS["recipes-list"]))
+        response = RecipesTests.user_client.get(reverse(URLS["recipes-list"]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        expected_recipes = Recipe.objects.all().order_by("-pub_date")
+        results = self.get_prepared_recipes(
+            expected_recipes, RecipesTests.user
+        )
+
         expected_recipes = {
-            "count": 1,
+            "count": Recipe.objects.all().count(),
             "next": None,
             "previous": None,
-            "results": [
-                {
-                    "id": 1,
-                    "name": "рецепт",
-                    "tags": [
-                        {
-                            "id": 1,
-                            "name": "Новый год",
-                            "color": "#1f00eb",
-                            "slug": "novyj-god",
-                        },
-                        {
-                            "id": 2,
-                            "name": "Майские",
-                            "color": "#ff0505",
-                            "slug": "majskie",
-                        },
-                        {
-                            "id": 3,
-                            "name": "День рождения",
-                            "color": "#fff705",
-                            "slug": "den-rozhdenija",
-                        },
-                    ],
-                    "author": {
-                        "email": "author@email.ru",
-                        "id": 2,
-                        "username": "Author",
-                        "first_name": "author-first-name",
-                        "last_name": "author-last-name",
-                        "is_subscribed": False,
-                    },
-                    "is_favorited": False,
-                    "is_in_shopping_cart": False,
-                    "ingredients": [
-                        {
-                            "id": 1,
-                            "name": "мука",
-                            "measurement_unit": "КГ",
-                            "amount": 1.0,
-                        },
-                        {
-                            "id": 2,
-                            "name": "молоко",
-                            "measurement_unit": "Л",
-                            "amount": 1.0,
-                        },
-                        {
-                            "id": 3,
-                            "name": "сахар",
-                            "measurement_unit": "г",
-                            "amount": 1.0,
-                        },
-                    ],
-                    "image": None,
-                    "text": "хоп-хоп и готово!",
-                    "cooking_time": 1,
-                }
-            ],
+            "results": results,
         }
+
+        prepared_response_data = self.get_prepared_response_data(response)
         self.assertJSONEqual(
-            str(response.content, "utf8"),
+            prepared_response_data,
             expected_recipes,
         )
 
-    def test_filters(self):
-        response = RecipesTests.client.get(
-            reverse(URLS["recipes-list"]), tags="zavtrak"
+    def test_author_filter(self):
+        response = RecipesTests.user_client.get(
+            reverse(URLS["recipes-list"]),
+            data={"author": RecipesTests.author.id},
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        expected_recipes = {}
 
-        response = RecipesTests.client.get(
-            reverse(URLS["recipes-list"]), tags="non-existent-slug"
+        expected_recipes = Recipe.objects.filter(author=RecipesTests.author)
+        results = self.get_prepared_recipes(
+            expected_recipes, RecipesTests.user
+        )
+        expected_response = {
+            "count": expected_recipes.count(),
+            "next": None,
+            "previous": None,
+            "results": results,
+        }
+
+        prepared_response_data = self.get_prepared_response_data(response)
+        self.assertJSONEqual(prepared_response_data, expected_response)
+
+    def test_tag_filter(self):
+        search_tag = Tag.objects.first()
+
+        response = RecipesTests.user_client.get(
+            reverse(URLS["recipes-list"]), data={"tags": search_tag.slug}
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        expected_recipes = Recipe.objects.filter(tags=search_tag)
+        results = self.get_prepared_recipes(
+            expected_recipes, RecipesTests.user
+        )
+        expected_response = {
+            "count": expected_recipes.count(),
+            "next": None,
+            "previous": None,
+            "results": results,
+        }
+
+        prepared_response_data = self.get_prepared_response_data(response)
+        self.assertJSONEqual(prepared_response_data, expected_response)
+
+    def test_favourite_filter(self):
+        response = RecipesTests.user_client.get(
+            reverse(URLS["recipes-list"]),
+            data={"is_favorited": IsFavoritedEnum.yes.value},
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        expected_recipes = Recipe.objects.filter(
+            users_chose_as_favorite=RecipesTests.user
+        )
+        results = self.get_prepared_recipes(
+            expected_recipes, RecipesTests.user
+        )
+
+        expected_response_data = {
+            "count": expected_recipes.count(),
+            "next": None,
+            "previous": None,
+            "results": results,
+        }
+
+        prepared_response_data = self.get_prepared_response_data(response)
+        self.assertJSONEqual(
+            prepared_response_data,
+            expected_response_data,
+        )
+
+    def test_shoping_cart_filter(self):
+        response = RecipesTests.user_client.get(
+            reverse(URLS["recipes-list"]),
+            data={"is_in_shopping_cart": IsShopingCartEnum.yes.value},
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        expected_empty_recipes = Recipe.objects.filter(
+            users_put_in_cart=RecipesTests.user
+        )
+
+        results = self.get_prepared_recipes(
+            expected_empty_recipes, RecipesTests.user
+        )
+
+        expected_response_data = {
+            "count": expected_empty_recipes.count(),
+            "next": None,
+            "previous": None,
+            "results": results,
+        }
+
+        prepared_response_data = self.get_prepared_response_data(response)
+        self.assertJSONEqual(
+            prepared_response_data,
+            expected_response_data,
+        )
+
+        response = RecipesTests.user_client.get(
+            reverse(URLS["recipes-list"]),
+            data={"is_in_shopping_cart": IsShopingCartEnum.no.value},
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        expected_recipes = Recipe.objects.exclude(
+            users_put_in_cart=RecipesTests.user
+        )
+
+        results = self.get_prepared_recipes(
+            expected_recipes, RecipesTests.user
+        )
+
+        expected_response_data = {
+            "count": expected_recipes.count(),
+            "next": None,
+            "previous": None,
+            "results": results,
+        }
+
+        prepared_response_data = self.get_prepared_response_data(response)
+        self.assertJSONEqual(
+            prepared_response_data,
+            expected_response_data,
+        )
 
     def test_detail(self):
-        response = RecipesTests.client.get(
-            reverse(URLS["recipes-detail"], args=[1])
+        recipe = Recipe.objects.latest("pub_date")
+        response = RecipesTests.user_client.get(
+            reverse(URLS["recipes-detail"], args=[recipe.id])
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        expected_recipes = {
-            "id": 1,
-            "name": "рецепт",
-            "tags": [
-                {
-                    "id": 1,
-                    "name": "Новый год",
-                    "color": "#1f00eb",
-                    "slug": "novyj-god",
-                },
-                {
-                    "id": 2,
-                    "name": "Майские",
-                    "color": "#ff0505",
-                    "slug": "majskie",
-                },
-                {
-                    "id": 3,
-                    "name": "День рождения",
-                    "color": "#fff705",
-                    "slug": "den-rozhdenija",
-                },
-            ],
-            "author": {
-                "email": "author@email.ru",
-                "id": 2,
-                "username": "Author",
-                "first_name": "author-first-name",
-                "last_name": "author-last-name",
-                "is_subscribed": False,
-            },
-            "is_favorited": False,
-            "is_in_shopping_cart": False,
-            "ingredients": [
-                {
-                    "id": 1,
-                    "name": "мука",
-                    "measurement_unit": "КГ",
-                    "amount": 1.0,
-                },
-                {
-                    "id": 2,
-                    "name": "молоко",
-                    "measurement_unit": "Л",
-                    "amount": 1.0,
-                },
-                {
-                    "id": 3,
-                    "name": "сахар",
-                    "measurement_unit": "г",
-                    "amount": 1.0,
-                },
-            ],
-            "image": None,
-            "text": "хоп-хоп и готово!",
-            "cooking_time": 1,
-        }
+        expected_recipes = RecipeFactory.detail_to_dict(
+            recipe, RecipesTests.user
+        )
 
         self.assertJSONEqual(
             str(response.content, "utf8"),
@@ -465,42 +505,7 @@ class RecipesTests(TestCase):
             ),
             "cooking_time": 42,
         }
-        expected_data = {
-            "id": 2,
-            "name": "Нечто восхитительное",
-            "tags": [
-                {
-                    "id": 1,
-                    "name": "Новый год",
-                    "color": "#1f00eb",
-                    "slug": "novyj-god",
-                }
-            ],
-            "author": {
-                "email": "author@email.ru",
-                "id": 2,
-                "username": "Author",
-                "first_name": "author-first-name",
-                "last_name": "author-last-name",
-                "is_subscribed": False,
-            },
-            "is_favorited": False,
-            "is_in_shopping_cart": False,
-            "ingredients": [
-                {
-                    "id": 1,
-                    "name": "мука",
-                    "measurement_unit": "КГ",
-                    "amount": 10.0,
-                }
-            ],
-            "image": "random-url",
-            "text": (
-                "Чтобы приготовить Нечто восхитительное,"
-                " необходимо всего лишь...."
-            ),
-            "cooking_time": 42,
-        }
+
         response = RecipesTests.author_client.post(
             path=reverse(URLS["recipes-list"]),
             data=json.dumps(create_data),
@@ -510,10 +515,16 @@ class RecipesTests(TestCase):
             response.status_code,
             status.HTTP_201_CREATED,
         )
+
+        recipe = Recipe.objects.latest("pub_date")
+        expected_data = RecipeFactory.detail_to_dict(recipe, RecipesTests.user)
+
+        # image have random name
         response_data_without_image = response.data.copy()
         response_data_without_image.pop("image")
         expected_data_without_image = expected_data.copy()
         expected_data_without_image.pop("image")
+
         self.assertJSONEqual(
             json.dumps(response_data_without_image),
             expected_data_without_image,
@@ -532,41 +543,9 @@ class RecipesTests(TestCase):
             "text": "Охапка дров и плов готов!",
             "cooking_time": 10,
         }
-        expected_data = {
-            "id": 1,
-            "name": "Теперь тут плов",
-            "tags": [
-                {
-                    "id": 1,
-                    "name": "Новый год",
-                    "color": "#1f00eb",
-                    "slug": "novyj-god",
-                }
-            ],
-            "author": {
-                "email": "author@email.ru",
-                "id": 2,
-                "username": "Author",
-                "first_name": "author-first-name",
-                "last_name": "author-last-name",
-                "is_subscribed": False,
-            },
-            "is_favorited": False,
-            "is_in_shopping_cart": False,
-            "ingredients": [
-                {
-                    "id": 1,
-                    "name": "мука",
-                    "measurement_unit": "КГ",
-                    "amount": 2.0,
-                }
-            ],
-            "image": "random-url",
-            "text": "Охапка дров и плов готов!",
-            "cooking_time": 10,
-        }
-        response = RecipesTests.client.put(
-            reverse(URLS["recipes-detail"], args=[1]),
+
+        response = RecipesTests.user_client.put(
+            reverse(URLS["recipes-detail"], args=[RecipesTests.recipe.id]),
             data=json.dumps(update_data),
             content_type="application/json",
         )
@@ -576,8 +555,15 @@ class RecipesTests(TestCase):
             msg="Не автор не должен иметь доступ к редактированию",
         )
 
+        recipe_dict = RecipeFactory.detail_to_dict(
+            RecipesTests.recipe, RecipesTests.user
+        )
+        recipe_dict_image_basename = self.get_recipe_img_basename(recipe_dict)
+
         response = RecipesTests.author_client.put(
-            path=reverse(URLS["recipes-detail"], args=[1]),
+            path=reverse(
+                URLS["recipes-detail"], args=[RecipesTests.recipe.id]
+            ),
             data=json.dumps(update_data),
             content_type="application/json",
         )
@@ -585,18 +571,19 @@ class RecipesTests(TestCase):
             response.status_code,
             status.HTTP_200_OK,
         )
-        response_data_without_image = response.data.copy()
-        response_data_without_image.pop("image")
-        expected_data_without_image = expected_data.copy()
-        expected_data_without_image.pop("image")
+
+        response_data_image_basename = self.get_recipe_img_basename(
+            recipe_dict
+        )
         self.assertJSONEqual(
-            json.dumps(response_data_without_image),
-            expected_data_without_image,
+            json.dumps(response_data_image_basename),
+            recipe_dict_image_basename,
         )
 
     def test_delete(self):
-        response = RecipesTests.client.delete(
-            path=reverse(URLS["recipes-detail"], args=[1]),
+        recipe = RecipeFactory.create(author=RecipesTests.author)
+        response = RecipesTests.user_client.delete(
+            path=reverse(URLS["recipes-detail"], args=[recipe.id]),
         )
         self.assertEqual(
             response.status_code,
@@ -605,13 +592,45 @@ class RecipesTests(TestCase):
         )
 
         response = RecipesTests.author_client.delete(
-            path=reverse(URLS["recipes-detail"], args=[1]),
+            path=reverse(URLS["recipes-detail"], args=[recipe.id]),
         )
         self.assertEqual(
             response.status_code,
             status.HTTP_204_NO_CONTENT,
         )
 
+    def test_favorited_add(self):
+        recipe = RecipesTests.recipe
+        is_favorited = recipe.users_chose_as_favorite.filter(
+            pk=RecipesTests.user.pk
+        ).exists()
+        self.assertFalse(is_favorited)
+
+        response = RecipesTests.user_client.get(
+            path=reverse(URLS["recipes-favorite"], args=[recipe.id]),
+        )
+        is_favorited = recipe.users_chose_as_favorite.filter(
+            pk=RecipesTests.user.pk
+        ).exists()
+        self.assertTrue(is_favorited)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertJSONEqual(
+            response.content, RecipeMinifiedSerializer(instance=recipe).data
+        )
+
+    def test_favorited_delete(self):
+        recipe = RecipesTests.recipe
+        recipe.users_chose_as_favorite.add(RecipesTests.user)
+
+        response = RecipesTests.user_client.delete(
+            path=reverse(URLS["recipes-favorite"], args=[recipe.id]),
+        )
+        is_favorited = recipe.users_chose_as_favorite.filter(
+            pk=RecipesTests.user.pk
+        ).exists()
+        self.assertFalse(is_favorited)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        
 
 class SubscriptionTest(TestCase):
     pass
