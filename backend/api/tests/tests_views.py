@@ -4,7 +4,7 @@ import shutil
 from os.path import basename
 from typing import List
 
-from api.models import Ingredient, MeasurementUnit, Recipe, Tag
+from api.models import Recipe, Tag
 from api.serializers import RecipeMinifiedSerializer
 from api.tests.factories import (
     NUMBER_MEASUREMENT_UNITS,
@@ -17,7 +17,6 @@ from api.tests.factories import (
 from api.views import IsFavoritedEnum, IsShopingCartEnum
 from django.contrib.auth import get_user_model
 from django.core.files.images import ImageFile
-from django.shortcuts import get_object_or_404
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -55,18 +54,6 @@ URLS = {
     "recipes-favorite": "api:recipes-favorite",
     "recipes-shopping_cart": "api:recipes-shopping_cart",
 }
-
-MEASUREMENT_UNITS = ["КГ", "Л", "г"]
-INGREDIENTS = [
-    {"name": "мука", "measurement_unit": "КГ"},
-    {"name": "молоко", "measurement_unit": "Л"},
-    {"name": "сахар", "measurement_unit": "г"},
-]
-TAGS = [
-    {"name": "Новый год", "color": "#1f00eb"},
-    {"name": "Майские", "color": "#ff0505"},
-    {"name": "День рождения", "color": "#fff705"},
-]
 
 IMAGE_BASE64 = (
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAAC"
