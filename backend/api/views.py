@@ -246,6 +246,42 @@ class RecipeViewSet(viewsets.ModelViewSet):
             users_favorite.remove(request.user)
             return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(detail=True, methods=["get", "delete"], url_name="shopping_cart")
+    def shopping_cart(self, request, pk=None):
+        recipe_queryset = Recipe.objects.filter(pk=pk)
+        if not recipe_queryset.exists():
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={"errors": "the recipe isn't exists"},
+            )
+
+        recipe = recipe_queryset[0]
+        users_putted_in_cart = recipe.users_put_in_cart
+        if request.method == "GET":
+            if users_putted_in_cart.filter(pk=request.user.pk).exists():
+                return Response(
+                    status=status.HTTP_400_BAD_REQUEST,
+                    data={
+                        "errors": "the recipe has already"
+                        "been added to shopping cart"
+                    },
+                )
+
+            users_putted_in_cart.add(request.user)
+            serializer = RecipeMinifiedSerializer(recipe)
+            return Response(
+                status=status.HTTP_201_CREATED, data=serializer.data
+            )
+
+        else:
+            if not users_putted_in_cart.filter(pk=request.user.pk).exists():
+                return Response(
+                    status=status.HTTP_400_BAD_REQUEST,
+                    data={"errors": "Recipe not added to shopping cart"},
+                )
+            users_putted_in_cart.remove(request.user)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class IngredientViewSet(ListRetrievDestroyViewSet):
     queryset = Ingredient.objects.all().order_by("id")
