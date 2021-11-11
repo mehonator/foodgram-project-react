@@ -46,15 +46,14 @@ AUTHOR = {
 
 
 URLS = {
-    "ingredients": "/api/ingredients/",
     "ingredients-list": "api:ingredients-list",
     "ingredients-detail": "api:ingredients-detail",
-    "tags": "/api/tags/",
     "tags-list": "api:tags-list",
     "tags-detail": "api:tags-detail",
     "recipes-list": "api:recipes-list",
     "recipes-detail": "api:recipes-detail",
     "recipes-favorite": "api:recipes-favorite",
+    "recipes-shopping_cart": "api:recipes-shopping_cart",
 }
 
 MEASUREMENT_UNITS = ["КГ", "Л", "г"]
@@ -188,7 +187,7 @@ class TagsTests(TestCase):
         cls.tags = TagFactory.create_batch(cls.number_tags)
 
     def test_tags_list(self):
-        response = IngredientsTests.client.get(URLS["tags"])
+        response = IngredientsTests.client.get(reverse(URLS["tags-list"]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         tags_dicts = [TagFactory.to_dict(tag) for tag in TagsTests.tags]
@@ -630,7 +629,39 @@ class RecipesTests(TestCase):
         ).exists()
         self.assertFalse(is_favorited)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        
+
+    def test_shopping_cart_add(self):
+        recipe = RecipesTests.recipe
+        is_in_shopping_cart = recipe.users_put_in_cart.filter(
+            pk=RecipesTests.user.pk
+        ).exists()
+        self.assertFalse(is_in_shopping_cart)
+
+        response = RecipesTests.user_client.get(
+            path=reverse(URLS["recipes-shopping_cart"], args=[recipe.id]),
+        )
+        is_in_shopping_cart = recipe.users_put_in_cart.filter(
+            pk=RecipesTests.user.pk
+        ).exists()
+        self.assertTrue(is_in_shopping_cart)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertJSONEqual(
+            response.content, RecipeMinifiedSerializer(instance=recipe).data
+        )
+
+    def test_shopping_cart_delete(self):
+        recipe = RecipesTests.recipe
+        recipe.users_put_in_cart.add(RecipesTests.user)
+
+        response = RecipesTests.user_client.delete(
+            path=reverse(URLS["recipes-shopping_cart"], args=[recipe.id]),
+        )
+        is_in_shopping_cart = recipe.users_put_in_cart.filter(
+            pk=RecipesTests.user.pk
+        ).exists()
+        self.assertFalse(is_in_shopping_cart)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
 
 class SubscriptionTest(TestCase):
     pass
