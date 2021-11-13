@@ -20,9 +20,14 @@ router.register("recipes", RecipeViewSet, basename="recipes")
 
 urlpatterns = [
     path("", include(router.urls)),
-    path("users/subscriptions/", SubscriptionList.as_view()),
+    path(
+        "users/subscriptions/",
+        SubscriptionList.as_view(),
+        name="subscriptions-list",
+    ),
     re_path(
         r"users/(?P<user_id>\d+)/subscriptions",
         SubscriptionCreateDestroy.as_view(),
+        name="subscriptions-detail",
     ),
 ]
