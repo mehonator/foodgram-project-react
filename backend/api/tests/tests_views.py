@@ -1,11 +1,12 @@
 import base64
+from collections import namedtuple
 import json
 import shutil
 from os.path import basename
-from typing import List
+from typing import Dict, List
 
-from api.models import Recipe, Tag
-from api.serializers import RecipeMinifiedSerializer
+from api.models import Recipe, Tag, Subscription
+from api.serializers import RecipeMinifiedSerializer, UserWithRecipesSerializer
 from api.tests.factories import (
     NUMBER_MEASUREMENT_UNITS,
     AmountIngredientFactory,
@@ -53,6 +54,8 @@ URLS = {
     "recipes-detail": "api:recipes-detail",
     "recipes-favorite": "api:recipes-favorite",
     "recipes-shopping_cart": "api:recipes-shopping_cart",
+    "subscriptions-list": "api:subscriptions-list",
+    "subscriptions-detail": "api:subscriptions-detail",
 }
 
 IMAGE_BASE64 = (
@@ -73,6 +76,8 @@ IMAGE_BASE64 = (
 
 MEDIA_PATH = "./test_media/"
 
+TestRequest = namedtuple("TestRequest", ("user",))
+
 
 def get_auth_clien() -> APIClient:
     user = CustomUser.objects.create_user(
@@ -85,6 +90,18 @@ def get_auth_clien() -> APIClient:
     client = APIClient()
     client.force_authenticate(user=user)
     return client
+
+
+def get_recipe_img_basename(recipe: dict) -> dict:
+    recipe_img_basename = recipe.copy()
+    image_path = recipe["image"]
+    # при отстутсвии файла response возвращает None, модель ""
+    # всё приводим к None
+    if image_path in ("", None):
+        recipe_img_basename["image"] = None
+    else:
+        recipe_img_basename["image"] = basename(image_path)
+    return recipe_img_basename
 
 
 class IngredientsTests(TestCase):
@@ -278,17 +295,6 @@ class RecipesTests(TestCase):
         super().tearDownClass()
         shutil.rmtree(MEDIA_PATH)
 
-    def get_recipe_img_basename(self, recipe: dict) -> dict:
-        recipe_img_basename = recipe.copy()
-        image_path = recipe["image"]
-        # при отстутсвии файла response возвращает None, модель ""
-        # всё приводим к None
-        if image_path in ("", None):
-            recipe_img_basename["image"] = None
-        else:
-            recipe_img_basename["image"] = basename(image_path)
-        return recipe_img_basename
-
     def get_prepared_recipes(
         self, recipes: List[dict], request_user: CustomUser
     ) -> List[dict]:
@@ -297,7 +303,7 @@ class RecipesTests(TestCase):
             recipe_dict = RecipeFactory.detail_to_dict(recipe, request_user)
             # Меняем полное название файла, на название без пути
             # т.к. путь из модели и reponse отличаються
-            recipe_img_basename = self.get_recipe_img_basename(recipe_dict)
+            recipe_img_basename = get_recipe_img_basename(recipe_dict)
             recipes_img_basename.append(recipe_img_basename)
         return recipes_img_basename
 
@@ -306,9 +312,7 @@ class RecipesTests(TestCase):
         for i, recipe_dict in enumerate(results_image_basename):
             # Меняем полное название файла, на название без пути
             # т.к. путь из модели и reponse отличаються
-            results_image_basename[i] = self.get_recipe_img_basename(
-                recipe_dict
-            )
+            results_image_basename[i] = get_recipe_img_basename(recipe_dict)
         response_data_image_basename = response.data.copy()
         response_data_image_basename["results"] = results_image_basename
         return json.dumps(response_data_image_basename)
@@ -333,6 +337,129 @@ class RecipesTests(TestCase):
         self.assertJSONEqual(
             prepared_response_data,
             expected_recipes,
+        )
+
+    def test_detail(self):
+        recipe = Recipe.objects.latest("pub_date")
+        response = RecipesTests.user_client.get(
+            reverse(URLS["recipes-detail"], args=[recipe.id])
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        expected_recipes = RecipeFactory.detail_to_dict(
+            recipe, RecipesTests.user
+        )
+
+        self.assertJSONEqual(
+            str(response.content, "utf8"),
+            expected_recipes,
+        )
+
+    def test_create(self):
+        create_data = {
+            "name": "Нечто восхитительное",
+            "tags": [
+                {"id": 1},
+            ],
+            "ingredients": [
+                {"id": 1, "amount": 10},
+            ],
+            "image": IMAGE_BASE64,
+            "text": (
+                "Чтобы приготовить Нечто восхитительное,"
+                " необходимо всего лишь...."
+            ),
+            "cooking_time": 42,
+        }
+
+        response = RecipesTests.author_client.post(
+            path=reverse(URLS["recipes-list"]),
+            data=json.dumps(create_data),
+            content_type="application/json",
+        )
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_201_CREATED,
+        )
+
+        recipe = Recipe.objects.latest("pub_date")
+        expected_data = RecipeFactory.detail_to_dict(recipe, RecipesTests.user)
+
+        # image have random name
+        response_data_without_image = response.data.copy()
+        response_data_without_image.pop("image")
+        expected_data_without_image = expected_data.copy()
+        expected_data_without_image.pop("image")
+
+        self.assertJSONEqual(
+            json.dumps(response_data_without_image),
+            expected_data_without_image,
+        )
+
+    def test_update(self):
+        update_data = {
+            "name": "Теперь тут плов",
+            "tags": [
+                {"id": 1},
+            ],
+            "ingredients": [
+                {"id": 1, "amount": 2},
+            ],
+            "image": IMAGE_BASE64,
+            "text": "Охапка дров и плов готов!",
+            "cooking_time": 10,
+        }
+
+        response = RecipesTests.user_client.put(
+            reverse(URLS["recipes-detail"], args=[RecipesTests.recipe.id]),
+            data=json.dumps(update_data),
+            content_type="application/json",
+        )
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_403_FORBIDDEN,
+            msg="Не автор не должен иметь доступ к редактированию",
+        )
+
+        recipe_dict = RecipeFactory.detail_to_dict(
+            RecipesTests.recipe, RecipesTests.user
+        )
+        recipe_dict_image_basename = get_recipe_img_basename(recipe_dict)
+
+        response = RecipesTests.author_client.put(
+            path=reverse(
+                URLS["recipes-detail"], args=[RecipesTests.recipe.id]
+            ),
+            data=json.dumps(update_data),
+            content_type="application/json",
+        )
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        response_data_image_basename = get_recipe_img_basename(recipe_dict)
+        self.assertJSONEqual(
+            json.dumps(response_data_image_basename),
+            recipe_dict_image_basename,
+        )
+
+    def test_delete(self):
+        recipe = RecipeFactory.create(author=RecipesTests.author)
+        response = RecipesTests.user_client.delete(
+            path=reverse(URLS["recipes-detail"], args=[recipe.id]),
+        )
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_403_FORBIDDEN,
+            msg="Не автор не должен иметь доступ к редактированию",
+        )
+
+        response = RecipesTests.author_client.delete(
+            path=reverse(URLS["recipes-detail"], args=[recipe.id]),
+        )
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_204_NO_CONTENT,
         )
 
     def test_author_filter(self):
@@ -460,131 +587,6 @@ class RecipesTests(TestCase):
             expected_response_data,
         )
 
-    def test_detail(self):
-        recipe = Recipe.objects.latest("pub_date")
-        response = RecipesTests.user_client.get(
-            reverse(URLS["recipes-detail"], args=[recipe.id])
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        expected_recipes = RecipeFactory.detail_to_dict(
-            recipe, RecipesTests.user
-        )
-
-        self.assertJSONEqual(
-            str(response.content, "utf8"),
-            expected_recipes,
-        )
-
-    def test_create(self):
-        create_data = {
-            "name": "Нечто восхитительное",
-            "tags": [
-                {"id": 1},
-            ],
-            "ingredients": [
-                {"id": 1, "amount": 10},
-            ],
-            "image": IMAGE_BASE64,
-            "text": (
-                "Чтобы приготовить Нечто восхитительное,"
-                " необходимо всего лишь...."
-            ),
-            "cooking_time": 42,
-        }
-
-        response = RecipesTests.author_client.post(
-            path=reverse(URLS["recipes-list"]),
-            data=json.dumps(create_data),
-            content_type="application/json",
-        )
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_201_CREATED,
-        )
-
-        recipe = Recipe.objects.latest("pub_date")
-        expected_data = RecipeFactory.detail_to_dict(recipe, RecipesTests.user)
-
-        # image have random name
-        response_data_without_image = response.data.copy()
-        response_data_without_image.pop("image")
-        expected_data_without_image = expected_data.copy()
-        expected_data_without_image.pop("image")
-
-        self.assertJSONEqual(
-            json.dumps(response_data_without_image),
-            expected_data_without_image,
-        )
-
-    def test_update(self):
-        update_data = {
-            "name": "Теперь тут плов",
-            "tags": [
-                {"id": 1},
-            ],
-            "ingredients": [
-                {"id": 1, "amount": 2},
-            ],
-            "image": IMAGE_BASE64,
-            "text": "Охапка дров и плов готов!",
-            "cooking_time": 10,
-        }
-
-        response = RecipesTests.user_client.put(
-            reverse(URLS["recipes-detail"], args=[RecipesTests.recipe.id]),
-            data=json.dumps(update_data),
-            content_type="application/json",
-        )
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_403_FORBIDDEN,
-            msg="Не автор не должен иметь доступ к редактированию",
-        )
-
-        recipe_dict = RecipeFactory.detail_to_dict(
-            RecipesTests.recipe, RecipesTests.user
-        )
-        recipe_dict_image_basename = self.get_recipe_img_basename(recipe_dict)
-
-        response = RecipesTests.author_client.put(
-            path=reverse(
-                URLS["recipes-detail"], args=[RecipesTests.recipe.id]
-            ),
-            data=json.dumps(update_data),
-            content_type="application/json",
-        )
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_200_OK,
-        )
-
-        response_data_image_basename = self.get_recipe_img_basename(
-            recipe_dict
-        )
-        self.assertJSONEqual(
-            json.dumps(response_data_image_basename),
-            recipe_dict_image_basename,
-        )
-
-    def test_delete(self):
-        recipe = RecipeFactory.create(author=RecipesTests.author)
-        response = RecipesTests.user_client.delete(
-            path=reverse(URLS["recipes-detail"], args=[recipe.id]),
-        )
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_403_FORBIDDEN,
-            msg="Не автор не должен иметь доступ к редактированию",
-        )
-
-        response = RecipesTests.author_client.delete(
-            path=reverse(URLS["recipes-detail"], args=[recipe.id]),
-        )
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_204_NO_CONTENT,
-        )
-
     def test_favorited_add(self):
         recipe = RecipesTests.recipe
         is_favorited = recipe.users_chose_as_favorite.filter(
@@ -650,5 +652,107 @@ class RecipesTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
 
+@override_settings(MEDIA_ROOT=MEDIA_PATH)
 class SubscriptionTest(TestCase):
-    pass
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+
+        cls.user = CustomUserFactory.create(
+            username=USER["username"],
+            email=USER["email"],
+            first_name=USER["first_name"],
+            last_name=USER["last_name"],
+            password=USER["password"],
+        )
+        cls.user_client = APIClient()
+        cls.user_client.force_authenticate(user=cls.user)
+
+        cls.recipes = []
+        cls.authors = []
+        number_recipes = 5
+        for i in range(number_recipes):
+            author = CustomUserFactory.create(
+                username=f"author{i}",
+                email=f"author{i}@email.com",
+            )
+            cls.authors.append(author)
+            Subscription.objects.create(leader=author, follower=cls.user)
+            cls.recipes.append(RecipeFactory.create(author=author))
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(MEDIA_PATH)
+
+    def get_users_with_recipes_img_basename(
+        self, users_with_recipes: List[Dict]
+    ):
+        result = users_with_recipes.copy()
+        for user in result:
+            for i in range(len(user["recipes"])):
+                user["recipes"][i] = get_recipe_img_basename(
+                    user["recipes"][i]
+                )
+        return result
+
+    def get_prepared_response_data(self, response):
+        results = response.data["results"].copy()
+        for user in results:
+            for i, recipe_dict in enumerate(user["recipes"]):
+                # Меняем полное название файла, на название без пути
+                # т.к. путь из модели и reponse отличаються
+                user["recipes"][i] = get_recipe_img_basename(recipe_dict)
+        response_data_image_basename = response.data.copy()
+        response_data_image_basename["results"] = results
+        return json.dumps(response_data_image_basename)
+
+    def test_list(self):
+        response = RecipesTests.user_client.get(
+            path=reverse(URLS["subscriptions-list"])
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        expected_authors = CustomUser.objects.filter(
+            leader_subscriptions__follower=RecipesTests.user
+        )
+        expected_results = []
+        for author in expected_authors:
+            expected_results.append(
+                UserWithRecipesSerializer(
+                    instance=author,
+                    context={"test_request_user": RecipesTests.user},
+                ).data
+            )
+        expected_results = self.get_users_with_recipes_img_basename(
+            expected_results
+        )
+        expected_response = {
+            "count": expected_authors.count(),
+            "next": None,
+            "previous": None,
+            "results": expected_results,
+        }
+        prepared_response_data = self.get_prepared_response_data(response)
+        self.assertJSONEqual(prepared_response_data, expected_response)
+
+    def test_create(self):
+        leader = CustomUserFactory.create()
+        response = RecipesTests.user_client.get(
+            path=reverse(URLS["subscriptions-detail"], args=[leader.id])
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        excepted = UserWithRecipesSerializer(
+            instance=leader, context={"test_request_user": RecipesTests.user}
+        ).data
+        self.assertJSONEqual(
+            json.dumps(response.data),
+            excepted,
+        )
+
+    def test_delete(self):
+        leader = CustomUserFactory.create()
+        response = RecipesTests.user_client.delete(
+            path=reverse(URLS["subscriptions-detail"], args=[leader.id])
+        )
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
