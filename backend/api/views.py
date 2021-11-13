@@ -18,7 +18,7 @@ from api.models import CustomUser, Ingredient, Recipe, Subscription, Tag
 from api.permissions import IsAuthor
 from api.serializers import (
     IngredientSerializer,
-    LeaderSubscriptionSerializer,
+    UserWithRecipesSerializer,
     RecipeCreateUpdateSerializer,
     RecipeMinifiedSerializer,
     RecipeSerializer,
@@ -296,7 +296,7 @@ class TagViewSet(ListRetrievViewSet):
 
 
 class SubscriptionList(ListAPIView):
-    serializer_class = LeaderSubscriptionSerializer
+    serializer_class = UserWithRecipesSerializer
 
     def get_queryset(self):
         leaders = CustomUser.objects.filter(
@@ -307,16 +307,14 @@ class SubscriptionList(ListAPIView):
 
 class SubscriptionCreateDestroy(GenericAPIView):
     def get(self, request, user_id):
+        kwargs = {"context": self.get_serializer_context()}
         leader = get_object_or_404(CustomUser, id=user_id)
 
-        subscription = Subscription.objects.create(
-            follower=request.user, leader=leader
+        Subscription.objects.create(follower=request.user, leader=leader)
+        serializer = UserWithRecipesSerializer(
+            instance=leader, **kwargs
         )
-        serializer = LeaderSubscriptionSerializer(
-            data=request.data, instance=subscription
-        )
-        serializer.is_valid()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(data=serializer.data, status=status.HTTP_201_CREATED)
 
     def delete(self, request, user_id):
         subscription = get_object_or_404(
