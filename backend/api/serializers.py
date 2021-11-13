@@ -174,14 +174,14 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
         return recipe
 
 
-class LeaderSubscriptionSerializer(serializers.ModelSerializer):
+class UserWithRecipesSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(read_only=True)
     id = serializers.IntegerField(read_only=True)
     username = serializers.CharField(read_only=True)
     first_name = serializers.CharField(read_only=True)
     last_name = serializers.CharField(read_only=True)
     is_subscribed = serializers.SerializerMethodField()
-    recipes = RecipeSerializer(many=True)
+    recipes = RecipeMinifiedSerializer(many=True)
     recipes_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -198,7 +198,11 @@ class LeaderSubscriptionSerializer(serializers.ModelSerializer):
         )
 
     def get_is_subscribed(self, leader) -> bool:
-        request_user = self.context["request"].user
+        request = self.context.get("request")
+        if request:
+            request_user = request.user
+        else:
+            request_user = self.context["test_request_user"]
         return leader.leader_subscriptions.filter(
             follower=request_user
         ).exists()
