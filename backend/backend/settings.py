@@ -6,7 +6,13 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = "4@^u7gw$q_upbr+c1gppr*@ah_e+*9%tdk4n0hrsp^=yl*2)w$"
 DEBUG = "True"
 
-ALLOWED_HOSTS: List[str] = []
+ALLOWED_HOSTS: List[str] = [
+    ".localhost",
+    "127.0.0.1",
+    "[::1]",
+    "0.0.0.0",
+    "web",
+]
 
 
 INSTALLED_APPS = [
@@ -129,7 +135,7 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend"
     ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ]
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
 }

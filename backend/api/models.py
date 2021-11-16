@@ -126,8 +126,8 @@ class Recipe(models.Model):
         upload_to=r"recipes/%Y/%m/%d/",
         verbose_name="Изображение",
         unique=False,
-        blank=True,
-        null=True,
+        blank=False,
+        null=False,
     )
     text = models.TextField(verbose_name="Описание", blank=False, null=False)
     cooking_time = models.IntegerField(
@@ -168,7 +168,7 @@ class AmountIngredient(models.Model):
         ordering = ["recipe", "-amount", "ingredient"]
 
     def __str__(self):
-        return str(self.amount)
+        return f"{self.recipe.name} {self.ingredient} {self.amount}"
 
 
 class Subscription(models.Model):
