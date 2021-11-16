@@ -708,7 +708,7 @@ class SubscriptionTest(TestCase):
         return json.dumps(response_data_image_basename)
 
     def test_list(self):
-        response = RecipesTests.user_client.get(
+        response = SubscriptionTest.user_client.get(
             path=reverse(URLS["subscriptions-list"])
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -738,12 +738,13 @@ class SubscriptionTest(TestCase):
 
     def test_create(self):
         leader = CustomUserFactory.create()
-        response = RecipesTests.user_client.get(
+        response = SubscriptionTest.user_client.get(
             path=reverse(URLS["subscriptions-detail"], args=[leader.id])
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         excepted = UserWithRecipesSerializer(
-            instance=leader, context={"test_request_user": RecipesTests.user}
+            instance=leader,
+            context={"test_request_user": SubscriptionTest.user},
         ).data
         self.assertJSONEqual(
             json.dumps(response.data),
@@ -752,7 +753,11 @@ class SubscriptionTest(TestCase):
 
     def test_delete(self):
         leader = CustomUserFactory.create()
-        response = RecipesTests.user_client.delete(
+        Subscription.objects.create(
+            leader=leader, follower=SubscriptionTest.user
+        )
+
+        response = SubscriptionTest.user_client.delete(
             path=reverse(URLS["subscriptions-detail"], args=[leader.id])
         )
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
