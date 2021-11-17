@@ -9,6 +9,7 @@ import django_filters
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from rest_framework import filters, mixins, status, viewsets
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.decorators import action
 from rest_framework.generics import (
     GenericAPIView,
@@ -32,20 +33,24 @@ from api.serializers import (
 CustomUser = get_user_model()
 
 
-class IsFavoritedEnum(Enum):
-    no = 0
-    yes = 1
+IS_FAVORITED_VALUES = {
+    "true": True,
+    "false": False,
+}
 
 
-class IsShopingCartEnum(Enum):
-    no = 0
-    yes = 1
-
+IS_IN_SHOPING_CART_VALUES = {
+    "true": True,
+    "false": False,
+}
 
 ValidationResult = namedtuple(
     "ValidationResult", ["is_valid", "query_param", "error_msg"]
 )
 
+class CustomLimitOffsetPagination(LimitOffsetPagination):
+    default_limit = 100
+    
 
 def validate_query_params(validators: List):
     def decorator(method):
@@ -91,8 +96,8 @@ class ListRetrievViewSet(
 class RecipeFilter(django_filters.FilterSet):
     author = django_filters.NumberFilter()
     tags = django_filters.AllValuesMultipleFilter(field_name="tags__slug")
-    is_favorited = django_filters.NumberFilter(method="get_is_favorited")
-    is_in_shopping_cart = django_filters.NumberFilter(
+    is_favorited = django_filters.CharFilter(method="get_is_favorited")
+    is_in_shopping_cart = django_filters.CharFilter(
         method="get_is_in_shopping_cart"
     )
 
@@ -101,15 +106,15 @@ class RecipeFilter(django_filters.FilterSet):
         fields = ("author", "tags", "is_favorited")
 
     def get_is_favorited(self, queryset, name, value):
-        if value == IsFavoritedEnum.yes.value:
+        if IS_FAVORITED_VALUES[value]:
             return queryset.filter(users_chose_as_favorite=self.request.user)
-        elif value == IsFavoritedEnum.no.value:
+        else:
             return queryset.exclude(users_chose_as_favorite=self.request.user)
 
     def get_is_in_shopping_cart(self, queryset, name, value):
-        if value == IsShopingCartEnum.yes.value:
+        if IS_IN_SHOPING_CART_VALUES[value]:
             return queryset.filter(users_put_in_cart=self.request.user)
-        elif value == IsShopingCartEnum.no.value:
+        else:
             return queryset.exclude(users_put_in_cart=self.request.user)
 
 
@@ -125,6 +130,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         "favorite": [IsAuthenticated],
     }
     filter_class = RecipeFilter
+    pagination_class = CustomLimitOffsetPagination
 
     def get_serializer_class(self):
         if self.request.method in ("POST", "PUT"):
@@ -142,27 +148,27 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return [permission() for permission in self.permission_classes]
 
     def validate_is_favorited(self):
-        is_favorited = self.request.query_params.get("is_favorited", None)
-        is_favorited_values = [enum.value for enum in IsFavoritedEnum]
-        if is_favorited and int(is_favorited) not in is_favorited_values:
+        is_favorited: str = self.request.query_params.get("is_favorited", None)
+        if is_favorited and is_favorited not in IS_FAVORITED_VALUES.keys():
             return ValidationResult(
-                False, "is_favorited", "Invalid value. Acceptable 0 and 1"
+                False,
+                "is_favorited",
+                "Invalid value. Acceptable 'true' and 'false'",
             )
         return ValidationResult(True, "is_favorited", "")
 
     def validate_is_in_shoping_cart(self):
-        is_in_shoping_cart = self.request.query_params.get(
+        is_in_shoping_cart: str = self.request.query_params.get(
             "is_in_shoping_cart", None
         )
-        is_in_shoping_cart_values = [enum.value for enum in IsShopingCartEnum]
         if (
             is_in_shoping_cart
-            and int(is_in_shoping_cart) not in is_in_shoping_cart_values
+            and is_in_shoping_cart not in IS_IN_SHOPING_CART_VALUES.keys()
         ):
             return ValidationResult(
                 False,
                 "is_in_shoping_cart",
-                "Invalid value. Acceptable 0 and 1",
+                "Invalid value. Acceptable 'true' and 'false",
             )
         return ValidationResult(True, "is_in_shoping_cart", "")
 
@@ -360,6 +366,7 @@ class TagViewSet(ListRetrievViewSet):
 
 class SubscriptionList(ListAPIView):
     serializer_class = UserWithRecipesSerializer
+    pagination_class = CustomLimitOffsetPagination
 
     def get_queryset(self):
         leaders = CustomUser.objects.filter(
