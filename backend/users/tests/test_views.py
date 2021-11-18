@@ -4,7 +4,7 @@ from users.models import Role
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
-from backend.settings import REST_FRAMEWORK
+from users.views import CustomLimitOffsetPagination as Pagination
 
 CustomUser = get_user_model()
 
@@ -29,7 +29,7 @@ NAMES_PATHS = {
     "reset_password": "/api/users/set_password/",
     "login": "/api/auth/token/login/",
     "logout": "/api/auth/token/logout/",
-    "my-subscriptions": "/api/users/subscriptions/"
+    "my-subscriptions": "/api/users/subscriptions/",
 }
 
 
@@ -116,7 +116,7 @@ class UsersTests(TestCase):
 
     def test_pagination(self):
         num_users = 50
-        num_page = 50 // REST_FRAMEWORK["PAGE_SIZE"]
+        num_page = 50 // Pagination.default_limit
         self.generate_users(num_users)
 
         response = UsersTests.auth_user_client.get(NAMES_PATHS["user-list"])
