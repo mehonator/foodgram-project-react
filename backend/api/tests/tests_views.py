@@ -15,7 +15,7 @@ from api.tests.factories import (
     RecipeFactory,
     TagFactory,
 )
-from api.views import IsFavoritedEnum, IsShopingCartEnum
+
 from django.contrib.auth import get_user_model
 from django.core.files.images import ImageFile
 from django.test import TestCase
@@ -508,7 +508,7 @@ class RecipesTests(TestCase):
     def test_favourite_filter(self):
         response = RecipesTests.user_client.get(
             reverse(URLS["recipes-list"]),
-            data={"is_favorited": IsFavoritedEnum.yes.value},
+            data={"is_favorited": "true"},
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -535,7 +535,7 @@ class RecipesTests(TestCase):
     def test_shoping_cart_filter(self):
         response = RecipesTests.user_client.get(
             reverse(URLS["recipes-list"]),
-            data={"is_in_shopping_cart": IsShopingCartEnum.yes.value},
+            data={"is_in_shopping_cart": "true"},
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -562,7 +562,7 @@ class RecipesTests(TestCase):
 
         response = RecipesTests.user_client.get(
             reverse(URLS["recipes-list"]),
-            data={"is_in_shopping_cart": IsShopingCartEnum.no.value},
+            data={"is_in_shopping_cart": "false"},
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
