@@ -158,21 +158,17 @@ class IngredientsTests(TestCase):
             reverse(URLS["ingredients-list"]), {"search": ingredient.name}
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        expected_ingredient = {
-            "count": 1,
-            "next": None,
-            "previous": None,
-            "results": [
-                {
-                    "id": ingredient.id,
-                    "name": ingredient.name,
-                    "measurement_unit": ingredient.measurement_unit.name,
-                }
-            ],
-        }
+        expected_result = [
+            {
+                "id": ingredient.id,
+                "name": ingredient.name,
+                "measurement_unit": ingredient.measurement_unit.name,
+            }
+        ]
+
         self.assertJSONEqual(
             str(response.content, "utf8"),
-            expected_ingredient,
+            expected_result,
         )
 
 
@@ -188,16 +184,10 @@ class TagsTests(TestCase):
         response = IngredientsTests.client.get(reverse(URLS["tags-list"]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        tags_dicts = [TagFactory.to_dict(tag) for tag in TagsTests.tags]
-        expected_response_data = {
-            "count": TagsTests.number_tags,
-            "next": None,
-            "previous": None,
-            "results": tags_dicts,
-        }
+        expected_result = [TagFactory.to_dict(tag) for tag in TagsTests.tags]
         self.assertJSONEqual(
             str(response.content, "utf8"),
-            expected_response_data,
+            expected_result,
         )
 
     def test_tag_retrieve(self):
