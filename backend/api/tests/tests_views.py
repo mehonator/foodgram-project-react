@@ -130,16 +130,10 @@ class IngredientsTests(TestCase):
                     "measurement_unit": ingredient.measurement_unit.name,
                 }
             )
-        expected_response_data = {
-            "count": IngredientsTests.NUMBER_INGREDIENTS,
-            "next": None,
-            "previous": None,
-            "results": expected_result,
-        }
 
         self.assertJSONEqual(
             str(response.content, "utf8"),
-            expected_response_data,
+            expected_result,
         )
 
     def test_get_detail(self):
