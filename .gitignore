@@ -134,3 +134,7 @@ dmypy.json
 .idea
 
 infra/nginx.conf
+.vscode/
+.vscode/*.*
+.vscode/launch.json
+.vscode/settings.json
