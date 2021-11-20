@@ -5,10 +5,13 @@ import shutil
 from os.path import basename
 from typing import Dict, List
 
-from api.models import Recipe, Tag, Subscription
-from api.serializers import RecipeMinifiedSerializer, UserWithRecipesSerializer
+from api.models import Ingredient, MeasurementUnit, Recipe, Tag, Subscription
+from api.serializers import (
+    IngredientSerializer,
+    RecipeMinifiedSerializer,
+    UserWithRecipesSerializer,
+)
 from api.tests.factories import (
-    NUMBER_MEASUREMENT_UNITS,
     AmountIngredientFactory,
     IngredientFactory,
     MeasurementUnitFactory,
@@ -111,7 +114,7 @@ class IngredientsTests(TestCase):
         cls.client = get_auth_clien()
         cls.NUMBER_INGREDIENTS = 10
 
-        MeasurementUnitFactory.create_batch(NUMBER_MEASUREMENT_UNITS)
+        MeasurementUnitFactory.create_batch(cls.NUMBER_INGREDIENTS)
         cls.ingredients = IngredientFactory.create_batch(
             cls.NUMBER_INGREDIENTS
         )
@@ -339,13 +342,15 @@ class RecipesTests(TestCase):
         )
 
     def test_create(self):
+        tag = Tag.objects.first()
+        ingredient = Ingredient.objects.first()
         create_data = {
             "name": "Нечто восхитительное",
             "tags": [
-                {"id": 1},
+                {"id": tag.id},
             ],
             "ingredients": [
-                {"id": 1, "amount": 10},
+                {"id": ingredient.id, "amount": 10},
             ],
             "image": IMAGE_BASE64,
             "text": (
@@ -383,10 +388,10 @@ class RecipesTests(TestCase):
         update_data = {
             "name": "Теперь тут плов",
             "tags": [
-                {"id": 1},
+                {"id": Tag.objects.first().id},
             ],
             "ingredients": [
-                {"id": 1, "amount": 2},
+                {"id": Ingredient.objects.first().id, "amount": 2},
             ],
             "image": IMAGE_BASE64,
             "text": "Охапка дров и плов готов!",
@@ -698,14 +703,14 @@ class SubscriptionTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         expected_authors = CustomUser.objects.filter(
-            leader_subscriptions__follower=RecipesTests.user
+            leader_subscriptions__follower=SubscriptionTest.user
         )
         expected_results = []
         for author in expected_authors:
             expected_results.append(
                 UserWithRecipesSerializer(
                     instance=author,
-                    context={"test_request_user": RecipesTests.user},
+                    context={"test_request_user": SubscriptionTest.user},
                 ).data
             )
         expected_results = self.get_users_with_recipes_img_basename(

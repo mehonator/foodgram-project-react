@@ -21,15 +21,6 @@ TAGS_COLORS = [
     "#ee00ff",
 ]
 
-MEASUREMENT_UNITS_NAMES = [
-    "КГ",
-    "Г",
-    "мл",
-    "Л",
-    "шт.",
-]
-NUMBER_MEASUREMENT_UNITS = len(MEASUREMENT_UNITS_NAMES)
-
 
 class TagFactory(factory.django.DjangoModelFactory):
     class Meta:
@@ -53,7 +44,7 @@ class MeasurementUnitFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = MeasurementUnit
 
-    name = factory.Iterator(MEASUREMENT_UNITS_NAMES)
+    name = factory.Sequence(lambda n: f"единица_измерения_{n}")
 
 
 class IngredientFactory(factory.django.DjangoModelFactory):
@@ -61,7 +52,8 @@ class IngredientFactory(factory.django.DjangoModelFactory):
         model = Ingredient
 
     name = factory.Sequence(lambda n: f"ингредиент_{n}")
-    measurement_unit = factory.Iterator(MeasurementUnit.objects.all())
+    measurement_unit = factory.SubFactory(MeasurementUnitFactory)
+
 
 
 class AmountIngredientFactory(factory.django.DjangoModelFactory):
@@ -71,6 +63,7 @@ class AmountIngredientFactory(factory.django.DjangoModelFactory):
     amount = factory.Sequence(lambda n: n)
     ingredient = factory.Iterator(Ingredient.objects.all())
     recipe = factory.Iterator(Recipe.objects.all())
+
 
     @staticmethod
     def to_dict(amount_ingretient: AmountIngredient) -> dict:

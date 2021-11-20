@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from users.tests.factories import CustomUserFactory
 from users.models import Role
 from rest_framework import status
 from rest_framework.authtoken.models import Token
@@ -72,28 +73,18 @@ class UsersTests(TestCase):
     def test_get_list(self):
         response = UsersTests.auth_user_client.get(NAMES_PATHS["user-list"])
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        users = CustomUser.objects.all()
+        users_dicts = []
+        for user in users:
+            users_dicts.append(
+                CustomUserFactory.user_to_dict(user, UsersTests.user)
+            )
         except_json = {
             "count": 2,
             "next": None,
             "previous": None,
-            "results": [
-                {
-                    "first_name": "vasya",
-                    "last_name": "pupkin",
-                    "username": "Test_urser",
-                    "email": "test_user@email.ru",
-                    "is_subscribed": False,
-                    "id": 1,
-                },
-                {
-                    "email": "admin@adminemail.com",
-                    "first_name": "Администратор",
-                    "id": 2,
-                    "last_name": "Администраторов",
-                    "is_subscribed": False,
-                    "username": "Admin",
-                },
-            ],
+            "results": users_dicts,
         }
         self.assertJSONEqual(
             str(response.content, encoding="utf8"),
@@ -101,23 +92,10 @@ class UsersTests(TestCase):
             "неверный JSON ответ",
         )
 
-    def generate_users(self, number):
-        users = []
-        for i in range(number):
-            users.append(
-                CustomUser(
-                    username=f"Тестюзер{i}",
-                    first_name=f"Имя{i}",
-                    last_name=f"Фамилия{i}",
-                    email=f"testuser{i}@email.com",
-                )
-            )
-        CustomUser.objects.bulk_create(users)
-
     def test_pagination(self):
         num_users = 50
         num_page = 50 // Pagination.default_limit
-        self.generate_users(num_users)
+        CustomUserFactory.create_batch(num_users)
 
         response = UsersTests.auth_user_client.get(NAMES_PATHS["user-list"])
         for i in range(1, num_page):
