@@ -8,13 +8,23 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
+    
     strategy:
       max-parallel: 4
       matrix:
         python-version: [3.9]
 
+    services:
+      db:
+        image: postgres
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+    
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -22,10 +32,24 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install Dependencies
+    
+      working-directory: backend
       run: |
         working-directory: backend
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        ls -a
     - name: Run Tests
+      working-directory: backend
+      
       run: |
         python manage.py test
+  
+      env:
+        DB_ENGINE: django.db.backends.postgresql
+        DB_NAME: postgres
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_HOST: localhost
+        DB_PORT: 5432
+        SECRET_KEY: 4@^u7gw$q_upbr+c1gppr*@ah_e+*9%tdk4n0hrsp^=yl*2)w$
