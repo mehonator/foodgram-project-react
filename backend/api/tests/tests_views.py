@@ -1,23 +1,9 @@
 import base64
 from collections import namedtuple
 import json
-import shutil
 from os.path import basename
+import shutil
 from typing import Dict, List
-
-from api.models import Ingredient, MeasurementUnit, Recipe, Tag, Subscription
-from api.serializers import (
-    IngredientSerializer,
-    RecipeMinifiedSerializer,
-    UserWithRecipesSerializer,
-)
-from api.tests.factories import (
-    AmountIngredientFactory,
-    IngredientFactory,
-    MeasurementUnitFactory,
-    RecipeFactory,
-    TagFactory,
-)
 
 from django.contrib.auth import get_user_model
 from django.core.files.images import ImageFile
@@ -26,6 +12,18 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+
+from api.models import Ingredient
+from api.models import Recipe
+from api.models import Subscription
+from api.models import Tag
+from api.serializers import RecipeMinifiedSerializer
+from api.serializers import UserWithRecipesSerializer
+from api.tests.factories import AmountIngredientFactory
+from api.tests.factories import IngredientFactory
+from api.tests.factories import MeasurementUnitFactory
+from api.tests.factories import RecipeFactory
+from api.tests.factories import TagFactory
 from users.tests.factories import CustomUserFactory
 
 CustomUser = get_user_model()

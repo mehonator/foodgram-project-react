@@ -1,34 +1,36 @@
-from collections import namedtuple, OrderedDict
-from enum import Enum
-from typing import List
+from collections import namedtuple
+from collections import OrderedDict
 import io
-from django.http.response import FileResponse
+from typing import List
 
-from fpdf import FPDF
-import django_filters
 from django.contrib.auth import get_user_model
-from django.http import HttpResponse
-from rest_framework import filters, mixins, status, viewsets
-from rest_framework.pagination import LimitOffsetPagination
+from django.http.response import FileResponse
+import django_filters
+from fpdf import FPDF
+from rest_framework import filters
+from rest_framework import mixins
+from rest_framework import status
+from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.generics import (
-    GenericAPIView,
-    ListAPIView,
-    get_object_or_404,
-)
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.generics import GenericAPIView
+from rest_framework.generics import get_object_or_404
+from rest_framework.generics import ListAPIView
+from rest_framework.pagination import LimitOffsetPagination
+from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from api.models import CustomUser, Ingredient, Recipe, Subscription, Tag
+from api.models import Ingredient
+from api.models import Recipe
+from api.models import Subscription
+from api.models import Tag
 from api.permissions import IsAuthor
-from api.serializers import (
-    IngredientSerializer,
-    UserWithRecipesSerializer,
-    RecipeCreateUpdateSerializer,
-    RecipeMinifiedSerializer,
-    RecipeSerializer,
-    TagSerializer,
-)
+from api.serializers import IngredientSerializer
+from api.serializers import RecipeCreateUpdateSerializer
+from api.serializers import RecipeMinifiedSerializer
+from api.serializers import RecipeSerializer
+from api.serializers import TagSerializer
+from api.serializers import UserWithRecipesSerializer
 
 CustomUser = get_user_model()
 
@@ -48,9 +50,10 @@ ValidationResult = namedtuple(
     "ValidationResult", ["is_valid", "query_param", "error_msg"]
 )
 
+
 class CustomLimitOffsetPagination(LimitOffsetPagination):
     default_limit = 100
-    
+
 
 def validate_query_params(validators: List):
     def decorator(method):

@@ -1,7 +1,4 @@
 from django.contrib.auth import get_user_model
-from rest_framework import pagination
-from rest_framework.decorators import action
-
 from djoser.views import UserViewSet
 from rest_framework.pagination import LimitOffsetPagination
 

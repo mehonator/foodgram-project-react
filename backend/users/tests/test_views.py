@@ -1,13 +1,15 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
-from users.tests.factories import CustomUserFactory
-from users.models import Role
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
-from users.views import CustomLimitOffsetPagination as Pagination
+
+from ..models import Role
+from ..tests.factories import CustomUserFactory
+from ..views import CustomLimitOffsetPagination as Pagination
 
 CustomUser = get_user_model()
+
 
 USER = {
     "username": "Test_urser",

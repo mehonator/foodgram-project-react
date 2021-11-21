@@ -1,13 +1,12 @@
 from django.contrib.auth import get_user_model
 import factory
-from api.models import (
-    Tag,
-    Ingredient,
-    MeasurementUnit,
-    Recipe,
-    AmountIngredient,
-    transliterate_slugify,
-)
+
+from api.models import AmountIngredient
+from api.models import Ingredient
+from api.models import MeasurementUnit
+from api.models import Recipe
+from api.models import Tag
+from api.models import transliterate_slugify
 from users.tests.factories import CustomUserFactory
 
 CustomUser = get_user_model()
@@ -55,7 +54,6 @@ class IngredientFactory(factory.django.DjangoModelFactory):
     measurement_unit = factory.SubFactory(MeasurementUnitFactory)
 
 
-
 class AmountIngredientFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = AmountIngredient
@@ -63,7 +61,6 @@ class AmountIngredientFactory(factory.django.DjangoModelFactory):
     amount = factory.Sequence(lambda n: n)
     ingredient = factory.Iterator(Ingredient.objects.all())
     recipe = factory.Iterator(Recipe.objects.all())
-
 
     @staticmethod
     def to_dict(amount_ingretient: AmountIngredient) -> dict:

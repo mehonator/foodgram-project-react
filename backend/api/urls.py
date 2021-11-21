@@ -1,14 +1,13 @@
-from django.urls import include, path
+from django.urls import include
+from django.urls import path
 from django.urls.conf import re_path
 from rest_framework.routers import DefaultRouter
 
-from api.views import (
-    IngredientViewSet,
-    RecipeViewSet,
-    SubscriptionCreateDestroy,
-    SubscriptionList,
-    TagViewSet,
-)
+from api.views import IngredientViewSet
+from api.views import RecipeViewSet
+from api.views import SubscriptionCreateDestroy
+from api.views import SubscriptionList
+from api.views import TagViewSet
 
 app_name = "api"
 

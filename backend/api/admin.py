@@ -1,12 +1,10 @@
 from django.contrib import admin
 
-from api.models import (
-    AmountIngredient,
-    Ingredient,
-    Recipe,
-    Tag,
-    MeasurementUnit,
-)
+from api.models import AmountIngredient
+from api.models import Ingredient
+from api.models import MeasurementUnit
+from api.models import Recipe
+from api.models import Tag
 
 
 @admin.register(AmountIngredient)
