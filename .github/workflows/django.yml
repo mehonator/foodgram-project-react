@@ -2,9 +2,9 @@ name: Django CI
 
 on:
   push:
-    branches: [ test ]
+    branches: [ backend-test ]
   pull_request:
-    branches: [ test ]
+    branches: [ backend-test ]
 
 jobs:
   build:
@@ -13,7 +13,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.9]
 
     steps:
     - uses: actions/checkout@v2
