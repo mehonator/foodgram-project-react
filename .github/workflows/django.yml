@@ -14,6 +14,16 @@ jobs:
       max-parallel: 4
       matrix:
         python-version: [3.9]
+
+    services:
+      db:
+        image: postgres
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
     
     steps:
     - uses: actions/checkout@v2
@@ -30,5 +40,14 @@ jobs:
         ls -a
     - name: Run Tests
       working-directory: backend
+      
       run: |
         python manage.py test
+  
+      env:
+        DB_ENGINE: django.db.backends.postgresql
+        DB_NAME: postgres
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_HOST: postgres
+        DB_PORT: 5432
