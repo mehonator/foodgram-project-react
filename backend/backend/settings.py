@@ -3,7 +3,7 @@ from typing import List
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-SECRET_KEY = "4@^u7gw$q_upbr+c1gppr*@ah_e+*9%tdk4n0hrsp^=yl*2)w$"
+SECRET_KEY = os.environ.get("DEBUG")
 DEBUG = os.environ.get("DEBUG")
 
 ALLOWED_HOSTS: List[str] = [
