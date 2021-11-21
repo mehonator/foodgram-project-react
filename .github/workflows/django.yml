@@ -21,9 +21,9 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+        working-directory: backend
     - name: Install Dependencies
       run: |
-        working-directory: backend
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     - name: Run Tests
