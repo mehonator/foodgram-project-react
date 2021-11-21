@@ -189,7 +189,7 @@ class Subscription(models.Model):
     def clean(self):
         if self.follower == self.leader:
             errors = {}
-            errors["follower"] = _("User cannot subscribe to himself!")
+            errors["follower"] = _("User cannot subscribe to himself")
             raise ValidationError(errors)
 
     def __str__(self):
