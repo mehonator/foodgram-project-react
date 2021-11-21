@@ -4,7 +4,7 @@ from typing import List
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SECRET_KEY = "4@^u7gw$q_upbr+c1gppr*@ah_e+*9%tdk4n0hrsp^=yl*2)w$"
-DEBUG = "True"
+DEBUG = os.environ.get("DEBUG")
 
 ALLOWED_HOSTS: List[str] = [
     ".localhost",
@@ -67,8 +67,8 @@ DATABASES = {
     "default": {
         "ENGINE": os.environ.get("DB_ENGINE", "django.db.backends.postgresql"),
         "NAME": os.environ.get("DB_NAME"),
-        "USER": os.environ.get("POSTGRES_USER"),
-        "PASSWORD": os.environ.get("POSTGRES_PASSWORD"),
+        "USER": os.environ.get("DB_USER"),
+        "PASSWORD": os.environ.get("DB_PASSWORD"),
         "HOST": os.environ.get("DB_HOST"),
         "PORT": os.environ.get("DB_PORT"),
     }
