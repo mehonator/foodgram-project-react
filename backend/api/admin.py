@@ -24,7 +24,7 @@ class TagAdmin(admin.ModelAdmin):
 
 @admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
-    pass
+    search_fields = ["name"]
 
 
 class AmountAdminStackedInline(admin.StackedInline):
@@ -33,13 +33,15 @@ class AmountAdminStackedInline(admin.StackedInline):
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
-    readonly_fields = ("pub_date",)
+    readonly_fields = ("pub_date", "count_favorite")
     inlines = (AmountAdminStackedInline,)
     fields = (
         "name",
         "author",
+        "count_favorite",
         "tags",
         "image",
         "text",
         "cooking_time",
     )
+    search_fields = ["name", "author__username", "tags__name"]
