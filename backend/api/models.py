@@ -39,6 +39,10 @@ class MeasurementUnit(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        verbose_name = "Единица измерения"
+        verbose_name_plural = "Единицы измерения"
+
 
 class Ingredient(models.Model):
     name = models.CharField(
@@ -55,6 +59,10 @@ class Ingredient(models.Model):
 
     def __str__(self):
         return f"{self.name} {self.measurement_unit.name}"
+
+    class Meta:
+        verbose_name = "Ингредиент"
+        verbose_name_plural = "Ингредиенты"
 
 
 def transliterate_slugify(text: str):
@@ -89,6 +97,9 @@ class Tag(models.Model):
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        verbose_name = "Теги"
 
 
 class Recipe(models.Model):
@@ -142,13 +153,23 @@ class Recipe(models.Model):
 
     class Meta:
         ordering = ["-pub_date"]
+        verbose_name = "Рецепт"
+        verbose_name_plural = "Рецепты"
+
+    @property
+    def count_favorite(self) -> int:
+        return self.users_put_in_cart.count()
+
+    count_favorite.fget.short_description = "Количество добавлений в избранное"
 
     def __str__(self):
         return self.name
 
 
 class AmountIngredient(models.Model):
-    amount = models.FloatField(validators=[MinValueValidator(0.0)])
+    amount = models.FloatField(
+        validators=[MinValueValidator(0.0)], verbose_name="Количество"
+    )
     recipe = models.ForeignKey(
         Recipe,
         related_name="amounts_ingredients",
@@ -166,6 +187,8 @@ class AmountIngredient(models.Model):
 
     class Meta:
         ordering = ["recipe", "-amount", "ingredient"]
+        verbose_name = "Количество ингредиентов"
+        verbose_name_plural = "Количество ингредиентов"
 
     def __str__(self):
         return f"{self.recipe.name} {self.ingredient} {self.amount}"
@@ -175,16 +198,20 @@ class Subscription(models.Model):
     follower = models.ForeignKey(
         CustomUser,
         related_name="follower_subscriptions",
+        verbose_name="подписчик",
         on_delete=models.CASCADE,
     )
     leader = models.ForeignKey(
         CustomUser,
         related_name="leader_subscriptions",
+        verbose_name="Лидер",
         on_delete=models.CASCADE,
     )
 
     class Meta:
         unique_together = (("follower", "leader"),)
+        verbose_name = "Подписка"
+        verbose_name_plural = "Подписки"
 
     def clean(self):
         if self.follower == self.leader:
