@@ -156,7 +156,7 @@ class IngredientsTests(TestCase):
     def test_search_ingredients(self):
         ingredient = IngredientsTests.ingredients[0]
         response = IngredientsTests.client.get(
-            reverse(URLS["ingredients-list"]), {"search": ingredient.name}
+            reverse(URLS["ingredients-list"]), {"name": ingredient.name}
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         expected_result = [
@@ -340,15 +340,11 @@ class RecipesTests(TestCase):
         )
 
     def test_create(self):
-        tag = Tag.objects.first()
-        ingredient = Ingredient.objects.first()
         create_data = {
             "name": "Нечто восхитительное",
-            "tags": [
-                {"id": tag.id},
-            ],
+            "tags": [Tag.objects.first().id],
             "ingredients": [
-                {"id": ingredient.id, "amount": 10},
+                {"id": Ingredient.objects.first().id, "amount": 10},
             ],
             "image": IMAGE_BASE64,
             "text": (
@@ -385,9 +381,7 @@ class RecipesTests(TestCase):
     def test_update(self):
         update_data = {
             "name": "Теперь тут плов",
-            "tags": [
-                {"id": Tag.objects.first().id},
-            ],
+            "tags": [Tag.objects.first().id],
             "ingredients": [
                 {"id": Ingredient.objects.first().id, "amount": 2},
             ],

@@ -7,7 +7,6 @@ from django.contrib.auth import get_user_model
 from django.http.response import FileResponse
 import django_filters
 from fpdf import FPDF
-from rest_framework import filters
 from rest_framework import mixins
 from rest_framework import status
 from rest_framework import viewsets
@@ -200,6 +199,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
 
     def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
         kwargs.setdefault("context", self.get_serializer_context())
         kwargs.pop("pk")
 
@@ -207,14 +207,14 @@ class RecipeViewSet(viewsets.ModelViewSet):
         update_serializer = RecipeCreateUpdateSerializer(
             instance,
             data=request.data,
-            partial=False,
+            partial=partial,
         )
         update_serializer.is_valid(raise_exception=True)
         instance = update_serializer.save(author=self.request.user)
         retrieve_serializer = RecipeSerializer(
-            instance=instance, data=request.data, *args, **kwargs
+            instance=instance, **kwargs
         )
-        retrieve_serializer.is_valid(raise_exception=True)
+
 
         if getattr(instance, "_prefetched_objects_cache", None):
             # If 'prefetch_related' has been applied to a queryset, we need to
@@ -222,6 +222,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
             instance._prefetched_objects_cache = {}
 
         return Response(retrieve_serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
 
     @action(detail=True, methods=["get", "delete"], url_name="favorite")
     def favorite(self, request, pk=None):
@@ -353,12 +357,19 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return response
 
 
+class IngredientFilter(django_filters.FilterSet):
+    name = django_filters.CharFilter(lookup_expr="istartswith")
+
+    class Meta:
+        model = Ingredient
+        fields = ["name"]
+
+
 class IngredientViewSet(ListRetrievViewSet):
     queryset = Ingredient.objects.all().order_by("id")
     serializer_class = IngredientSerializer
     permission_classes = [AllowAny]
-    filter_backends = [filters.SearchFilter]
-    search_fields = ["name"]
+    filter_class = IngredientFilter
 
 
 class TagViewSet(ListRetrievViewSet):
