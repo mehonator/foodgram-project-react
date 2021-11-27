@@ -114,12 +114,13 @@ class RecipeSerializer(serializers.ModelSerializer):
 
 class RecipeCreateUpdateSerializer(RecipeSerializer):
     ingredients = AmountIngredientRecipeCreateUpdateSerializer(many=True)
+    tags = serializers.ListField(child=serializers.IntegerField())
 
     def create(self, validated_data):
         # the transaction is needed to rollback the creation of amounts
         with transaction.atomic():
-            ids_tags = [ord_dict["id"] for ord_dict in validated_data["tags"]]
-            tags = get_list_or_404(Tag, pk__in=ids_tags)
+            tags_ids = validated_data["tags"]
+            tags = get_list_or_404(Tag, pk__in=tags_ids)
 
             recipe = Recipe.objects.create(
                 author=self.context["request"].user,
@@ -149,33 +150,31 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
     def update(self, recipe, validated_data):
         # the transaction is needed to rollback the creation of amounts
         with transaction.atomic():
-            pks_tags = [ord_dict["id"] for ord_dict in validated_data["tags"]]
-            tags = get_list_or_404(Tag, pk__in=pks_tags)
+            tags_ids = validated_data.pop("tags", None)
+            if tags_ids:
+                tags = get_list_or_404(Tag, pk__in=tags_ids)
+                recipe.tags.set(tags)
 
-            old_amounts_intstance = recipe.amounts_ingredients.all()
-            old_amounts_intstance.delete()
-
-            new_amounts_intstance = []
-            for ingredient_data in validated_data["ingredients"]:
-                amount = ingredient_data["amount"]
-                new_amounts_intstance.append(
-                    AmountIngredient(
-                        amount=amount,
-                        recipe=recipe,
-                        ingredient=get_object_or_404(
-                            Ingredient, pk=ingredient_data["id"]
-                        ),
+            ingredients = validated_data.pop("ingredients", None)
+            if ingredients:
+                recipe.amounts_ingredients.all().delete()
+                new_amounts_intstance = []
+                for ingredient in ingredients:
+                    id, amount = ingredient.values()
+                    new_amounts_intstance.append(
+                        AmountIngredient(
+                            amount=amount,
+                            recipe=recipe,
+                            ingredient=get_object_or_404(
+                                Ingredient, pk=id
+                            ),
+                        )
                     )
-                )
+                AmountIngredient.objects.bulk_create(new_amounts_intstance)
 
-            AmountIngredient.objects.bulk_create(new_amounts_intstance)
-            recipe.name = validated_data["name"]
-            recipe.image = validated_data["image"]
-            recipe.text = validated_data["text"]
-            recipe.cooking_time = validated_data["cooking_time"]
-            recipe.tags.set(tags)
+            for attribute, value in validated_data.items():
+                setattr(recipe, attribute, value)
             recipe.save()
-
         return recipe
 
 

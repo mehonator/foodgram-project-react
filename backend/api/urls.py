@@ -25,7 +25,7 @@ urlpatterns = [
         name="subscriptions-list",
     ),
     re_path(
-        r"users/(?P<user_id>\d+)/subscriptions",
+        r"users/(?P<user_id>\d+)/subscribe/",
         SubscriptionCreateDestroy.as_view(),
         name="subscriptions-detail",
     ),

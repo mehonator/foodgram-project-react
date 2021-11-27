@@ -71,7 +71,12 @@ DATABASES = {
         "PASSWORD": os.environ.get("DB_PASSWORD"),
         "HOST": os.environ.get("DB_HOST"),
         "PORT": os.environ.get("DB_PORT"),
-    }
+    },
+    "test": {
+        "ENGINE": os.environ.get("DB_ENGINE", "django.db.backends.postgresql"),
+        "NAME": os.environ.get("DB_NAME"),
+        "USER": os.environ.get("DB_USER"),
+    },
 }
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -104,10 +109,10 @@ USE_L10N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
-STATIC_ROOT = "./static/"
+STATIC_ROOT = "/var/html/static/"
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = "./media/"
+MEDIA_ROOT = "/var/html/media/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -118,6 +123,9 @@ DJOSER = {
         "current_user": "users.serializers.CustomUserSerializer",
     },
     "LOGIN_FIELD": "email",
+    "PERMISSIONS": {
+        "user_list": ["rest_framework.permissions.AllowAny"],
+    },
 }
 
 REST_FRAMEWORK = {
