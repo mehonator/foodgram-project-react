@@ -215,7 +215,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
             instance=instance, **kwargs
         )
 
-
         if getattr(instance, "_prefetched_objects_cache", None):
             # If 'prefetch_related' has been applied to a queryset, we need to
             # forcibly invalidate the prefetch cache on the instance.

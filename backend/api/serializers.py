@@ -154,7 +154,7 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
             if tags_ids:
                 tags = get_list_or_404(Tag, pk__in=tags_ids)
                 recipe.tags.set(tags)
-            
+
             ingredients = validated_data.pop("ingredients", None)
             if ingredients:
                 recipe.amounts_ingredients.all().delete()
