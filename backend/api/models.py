@@ -5,26 +5,12 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils.text import slugify as dj_slugify
-from django.utils.translation import gettext_lazy as _
 from transliterate import detect_language
 from transliterate import slugify as trans_slugify
 
+from api.exceptions import NotFoundLangException
+
 CustomUser = get_user_model()
-
-
-class NotFoundLangException(Exception):
-    """Allow language:
-    Armenian
-    Bulgarian (beta)
-    Georgian
-    Greek
-    Macedonian (alpha)
-    Mongolian (alpha)
-    Russian
-    Serbian (alpha)
-    Ukrainian (beta)"""
-
-    pass
 
 
 class MeasurementUnit(models.Model):
@@ -32,8 +18,6 @@ class MeasurementUnit(models.Model):
         verbose_name="Название",
         max_length=128,
         unique=True,
-        blank=False,
-        null=False,
     )
 
     def __str__(self):
@@ -45,15 +29,11 @@ class MeasurementUnit(models.Model):
 
 
 class Ingredient(models.Model):
-    name = models.CharField(
-        verbose_name="Название", max_length=512, blank=False, null=False
-    )
+    name = models.CharField(verbose_name="Название", max_length=512)
     measurement_unit = models.ForeignKey(
         MeasurementUnit,
         verbose_name="Единица измерения",
         related_name="ingredients",
-        null=False,
-        blank=False,
         on_delete=models.PROTECT,
     )
 
@@ -84,8 +64,6 @@ class Tag(models.Model):
         verbose_name="Название",
         max_length=512,
         unique=True,
-        blank=False,
-        null=False,
     )
     color = ColorField(verbose_name="Цвет", blank=True, null=True)
     slug = AutoSlugField(
@@ -107,8 +85,6 @@ class Recipe(models.Model):
         verbose_name="Название",
         max_length=512,
         unique=True,
-        blank=False,
-        null=False,
     )
     tags = models.ManyToManyField(
         Tag, verbose_name="Тэги", related_name="recipes", blank=True
@@ -117,8 +93,6 @@ class Recipe(models.Model):
         CustomUser,
         verbose_name="Автор",
         related_name="recipes",
-        blank=False,
-        null=False,
         on_delete=models.CASCADE,
     )
     users_chose_as_favorite = models.ManyToManyField(
@@ -137,14 +111,10 @@ class Recipe(models.Model):
         upload_to=r"recipes/%Y/%m/%d/",
         verbose_name="Изображение",
         unique=False,
-        blank=False,
-        null=False,
     )
-    text = models.TextField(verbose_name="Описание", blank=False, null=False)
+    text = models.TextField(verbose_name="Описание")
     cooking_time = models.IntegerField(
         verbose_name="Время приготовления в минутах",
-        blank=False,
-        null=False,
     )
     pub_date = models.DateTimeField(
         verbose_name="Дата публикации",
@@ -173,15 +143,11 @@ class AmountIngredient(models.Model):
     recipe = models.ForeignKey(
         Recipe,
         related_name="amounts_ingredients",
-        null=False,
-        blank=False,
         on_delete=models.CASCADE,
     )
     ingredient = models.ForeignKey(
         Ingredient,
         related_name="amounts_ingredients",
-        null=False,
-        blank=False,
         on_delete=models.PROTECT,
     )
 
@@ -216,7 +182,7 @@ class Subscription(models.Model):
     def clean(self):
         if self.follower == self.leader:
             errors = {}
-            errors["follower"] = _("User cannot subscribe to himself")
+            errors["follower"] = "User cannot subscribe to himself"
             raise ValidationError(errors)
 
     def __str__(self):
