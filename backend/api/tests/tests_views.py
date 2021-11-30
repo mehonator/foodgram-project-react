@@ -1,8 +1,8 @@
 import base64
-from collections import namedtuple
 import json
-from os.path import basename
 import shutil
+from collections import namedtuple
+from os.path import basename
 from typing import Dict, List
 
 from django.contrib.auth import get_user_model
@@ -13,17 +13,15 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.models import Ingredient
-from api.models import Recipe
-from api.models import Subscription
-from api.models import Tag
-from api.serializers import RecipeMinifiedSerializer
-from api.serializers import UserWithRecipesSerializer
-from api.tests.factories import AmountIngredientFactory
-from api.tests.factories import IngredientFactory
-from api.tests.factories import MeasurementUnitFactory
-from api.tests.factories import RecipeFactory
-from api.tests.factories import TagFactory
+from api.models import Ingredient, Recipe, Subscription, Tag
+from api.serializers import RecipeMinifiedSerializer, UserWithRecipesSerializer
+from api.tests.factories import (
+    AmountIngredientFactory,
+    IngredientFactory,
+    MeasurementUnitFactory,
+    RecipeFactory,
+    TagFactory,
+)
 from users.tests.factories import CustomUserFactory
 
 CustomUser = get_user_model()

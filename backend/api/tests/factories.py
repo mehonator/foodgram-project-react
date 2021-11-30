@@ -1,12 +1,14 @@
-from django.contrib.auth import get_user_model
 import factory
+from django.contrib.auth import get_user_model
 
-from api.models import AmountIngredient
-from api.models import Ingredient
-from api.models import MeasurementUnit
-from api.models import Recipe
-from api.models import Tag
-from api.models import transliterate_slugify
+from api.models import (
+    AmountIngredient,
+    Ingredient,
+    MeasurementUnit,
+    Recipe,
+    Tag,
+    transliterate_slugify,
+)
 from users.tests.factories import CustomUserFactory
 
 CustomUser = get_user_model()

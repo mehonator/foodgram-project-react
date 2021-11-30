@@ -1,15 +1,10 @@
 from django.db import transaction
-from django.shortcuts import get_list_or_404
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_list_or_404, get_object_or_404
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 from rest_framework.fields import CharField
 
-from api.models import AmountIngredient
-from api.models import CustomUser
-from api.models import Ingredient
-from api.models import Recipe
-from api.models import Tag
+from api.models import AmountIngredient, CustomUser, Ingredient, Recipe, Tag
 from users.serializers import CustomUserSerializer
 
 
@@ -165,9 +160,7 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
                         AmountIngredient(
                             amount=amount,
                             recipe=recipe,
-                            ingredient=get_object_or_404(
-                                Ingredient, pk=id
-                            ),
+                            ingredient=get_object_or_404(Ingredient, pk=id),
                         )
                     )
                 AmountIngredient.objects.bulk_create(new_amounts_intstance)

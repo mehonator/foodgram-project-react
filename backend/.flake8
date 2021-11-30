@@ -9,4 +9,5 @@ exclude =
     venv,
     */migrations/*.*
 
-import-order-style = google
+import-order-style = black
+line_length = 79

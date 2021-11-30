@@ -1,35 +1,32 @@
-from collections import namedtuple
-from collections import OrderedDict
 import io
+from collections import OrderedDict, namedtuple
 from typing import List
 
+import django_filters
 from django.contrib.auth import get_user_model
 from django.http.response import FileResponse
-import django_filters
 from fpdf import FPDF
-from rest_framework import mixins
-from rest_framework import status
-from rest_framework import viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.generics import GenericAPIView
-from rest_framework.generics import get_object_or_404
-from rest_framework.generics import ListAPIView
+from rest_framework.generics import (
+    GenericAPIView,
+    ListAPIView,
+    get_object_or_404,
+)
 from rest_framework.pagination import LimitOffsetPagination
-from rest_framework.permissions import AllowAny
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from api.models import Ingredient
-from api.models import Recipe
-from api.models import Subscription
-from api.models import Tag
+from api.models import Ingredient, Recipe, Subscription, Tag
 from api.permissions import IsAuthor
-from api.serializers import IngredientSerializer
-from api.serializers import RecipeCreateUpdateSerializer
-from api.serializers import RecipeMinifiedSerializer
-from api.serializers import RecipeSerializer
-from api.serializers import TagSerializer
-from api.serializers import UserWithRecipesSerializer
+from api.serializers import (
+    IngredientSerializer,
+    RecipeCreateUpdateSerializer,
+    RecipeMinifiedSerializer,
+    RecipeSerializer,
+    TagSerializer,
+    UserWithRecipesSerializer,
+)
 
 CustomUser = get_user_model()
 
@@ -199,7 +196,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop("partial", False)
         kwargs.setdefault("context", self.get_serializer_context())
         kwargs.pop("pk")
 
@@ -211,9 +208,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
         update_serializer.is_valid(raise_exception=True)
         instance = update_serializer.save(author=self.request.user)
-        retrieve_serializer = RecipeSerializer(
-            instance=instance, **kwargs
-        )
+        retrieve_serializer = RecipeSerializer(instance=instance, **kwargs)
 
         if getattr(instance, "_prefetched_objects_cache", None):
             # If 'prefetch_related' has been applied to a queryset, we need to
@@ -223,7 +218,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return Response(retrieve_serializer.data)
 
     def partial_update(self, request, *args, **kwargs):
-        kwargs['partial'] = True
+        kwargs["partial"] = True
         return self.update(request, *args, **kwargs)
 
     @action(detail=True, methods=["get", "delete"], url_name="favorite")
