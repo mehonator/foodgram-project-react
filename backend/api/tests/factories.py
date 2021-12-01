@@ -24,12 +24,12 @@ TAGS_COLORS = [
 
 
 class TagFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = Tag
-
     name = factory.Sequence(lambda n: f"Тег_{n}")
     color = factory.Iterator(TAGS_COLORS)
     slug = factory.LazyAttribute(lambda obj: transliterate_slugify(obj.name))
+
+    class Meta:
+        model = Tag
 
     @staticmethod
     def to_dict(tag: Tag) -> dict:
@@ -42,27 +42,27 @@ class TagFactory(factory.django.DjangoModelFactory):
 
 
 class MeasurementUnitFactory(factory.django.DjangoModelFactory):
+    name = factory.Sequence(lambda n: f"единица_измерения_{n}")
+
     class Meta:
         model = MeasurementUnit
 
-    name = factory.Sequence(lambda n: f"единица_измерения_{n}")
-
 
 class IngredientFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = Ingredient
-
     name = factory.Sequence(lambda n: f"ингредиент_{n}")
     measurement_unit = factory.SubFactory(MeasurementUnitFactory)
 
+    class Meta:
+        model = Ingredient
+
 
 class AmountIngredientFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = AmountIngredient
-
     amount = factory.Sequence(lambda n: n)
     ingredient = factory.Iterator(Ingredient.objects.all())
     recipe = factory.Iterator(Recipe.objects.all())
+
+    class Meta:
+        model = AmountIngredient
 
     @staticmethod
     def to_dict(amount_ingretient: AmountIngredient) -> dict:
@@ -77,32 +77,14 @@ class AmountIngredientFactory(factory.django.DjangoModelFactory):
 
 
 class RecipeFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = Recipe
-
     name = factory.Sequence(lambda n: f"рецепт_{n}")
     author = factory.SubFactory(CustomUserFactory)
     text = factory.Faker("text")
     image = factory.django.ImageField(filename="api/tests/test-pic.png")
     cooking_time = 1
 
-    @factory.post_generation
-    def users_chose_as_favorite(self, create, extracted, **kwargs):
-        if not create:
-            return
-
-        if extracted:
-            for user in extracted:
-                self.users_chose_as_favorite.add(user)
-
-    @factory.post_generation
-    def tags(self, create, extracted, **kwargs):
-        if not create:
-            return
-
-        if extracted:
-            for tag in extracted:
-                self.tags.add(tag)
+    class Meta:
+        model = Recipe
 
     @staticmethod
     def create_update_to_dict(recipe: Recipe) -> dict:
@@ -143,3 +125,21 @@ class RecipeFactory(factory.django.DjangoModelFactory):
         )
 
         return recipe_dict
+
+    @factory.post_generation
+    def users_chose_as_favorite(self, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for user in extracted:
+                self.users_chose_as_favorite.add(user)
+
+    @factory.post_generation
+    def tags(self, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for tag in extracted:
+                self.tags.add(tag)

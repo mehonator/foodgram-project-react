@@ -384,6 +384,13 @@ class SubscriptionList(ListAPIView):
 
 
 class SubscriptionCreateDestroy(GenericAPIView):
+    def delete(self, request, user_id):
+        subscription = get_object_or_404(
+            Subscription, follower=request.user, leader_id=user_id
+        )
+        subscription.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def get(self, request, user_id):
         kwargs = {"context": self.get_serializer_context()}
         leader = get_object_or_404(CustomUser, id=user_id)
@@ -391,10 +398,3 @@ class SubscriptionCreateDestroy(GenericAPIView):
         Subscription.objects.create(follower=request.user, leader=leader)
         serializer = UserWithRecipesSerializer(instance=leader, **kwargs)
         return Response(data=serializer.data, status=status.HTTP_201_CREATED)
-
-    def delete(self, request, user_id):
-        subscription = get_object_or_404(
-            Subscription, follower=request.user, leader_id=user_id
-        )
-        subscription.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)

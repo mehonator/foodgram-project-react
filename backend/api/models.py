@@ -20,12 +20,12 @@ class MeasurementUnit(models.Model):
         unique=True,
     )
 
-    def __str__(self):
-        return self.name
-
     class Meta:
         verbose_name = "Единица измерения"
         verbose_name_plural = "Единицы измерения"
+
+    def __str__(self):
+        return self.name
 
 
 class Ingredient(models.Model):
@@ -37,12 +37,12 @@ class Ingredient(models.Model):
         on_delete=models.PROTECT,
     )
 
-    def __str__(self):
-        return f"{self.name} {self.measurement_unit.name}"
-
     class Meta:
         verbose_name = "Ингредиент"
         verbose_name_plural = "Ингредиенты"
+
+    def __str__(self):
+        return f"{self.name} {self.measurement_unit.name}"
 
 
 def transliterate_slugify(text: str):
@@ -73,11 +73,11 @@ class Tag(models.Model):
         unique=True,
     )
 
-    def __str__(self):
-        return self.name
-
     class Meta:
         verbose_name = "Теги"
+
+    def __str__(self):
+        return self.name
 
 
 class Recipe(models.Model):
@@ -126,14 +126,14 @@ class Recipe(models.Model):
         verbose_name = "Рецепт"
         verbose_name_plural = "Рецепты"
 
+    def __str__(self):
+        return self.name
+
     @property
-    def count_favorite(self) -> int:
+    def count_favorite(self) -> int:  # noqa CCE001
         return self.users_put_in_cart.count()
 
     count_favorite.fget.short_description = "Количество добавлений в избранное"
-
-    def __str__(self):
-        return self.name
 
 
 class AmountIngredient(models.Model):
@@ -179,11 +179,11 @@ class Subscription(models.Model):
         verbose_name = "Подписка"
         verbose_name_plural = "Подписки"
 
+    def __str__(self):
+        return f"{self.follower.get_username()}-{self.leader.get_username()}"
+
     def clean(self):
         if self.follower == self.leader:
             errors = {}
             errors["follower"] = "User cannot subscribe to himself"
             raise ValidationError(errors)
-
-    def __str__(self):
-        return f"{self.follower.get_username()}-{self.leader.get_username()}"
