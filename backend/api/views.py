@@ -1,6 +1,5 @@
 import io
-from collections import OrderedDict, namedtuple
-from typing import List
+from collections import OrderedDict
 
 import django_filters
 from django.contrib.auth import get_user_model
@@ -17,6 +16,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from api.constants import IS_FAVORITED_VALUES, IS_IN_SHOPING_CART_VALUES
 from api.models import Ingredient, Recipe, Subscription, Tag
 from api.permissions import IsAuthor
 from api.serializers import (
@@ -27,52 +27,13 @@ from api.serializers import (
     TagSerializer,
     UserWithRecipesSerializer,
 )
+from api.validations import ValidationResult, validate_query_params
 
 CustomUser = get_user_model()
 
 
-IS_FAVORITED_VALUES = {
-    "true": True,
-    "false": False,
-}
-
-
-IS_IN_SHOPING_CART_VALUES = {
-    "true": True,
-    "false": False,
-}
-
-ValidationResult = namedtuple(
-    "ValidationResult", ["is_valid", "query_param", "error_msg"]
-)
-
-
 class CustomLimitOffsetPagination(LimitOffsetPagination):
     default_limit = 100
-
-
-def validate_query_params(validators: List):
-    def decorator(method):
-        def wrapper(self, *args, **kwargs):
-            params_errors = {}
-            for validate in validators:
-                validation = validate(self)
-                if not validation.is_valid:
-                    params_errors[
-                        validation.query_param
-                    ] = validation.error_msg
-
-            if params_errors:
-                return Response(
-                    status=status.HTTP_400_BAD_REQUEST,
-                    data=params_errors,
-                )
-
-            return method(self, *args, **kwargs)
-
-        return wrapper
-
-    return decorator
 
 
 class ListRetrievDestroyViewSet(
