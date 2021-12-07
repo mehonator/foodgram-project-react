@@ -63,7 +63,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return [permission() for permission in self.permission_classes]
 
     def validate_is_favorited(self):
-        is_favorited: str = self.request.query_params.get("is_favorited", None)
+        is_favorited: str = self.request.query_params.get("is_favorited")
         if is_favorited and is_favorited not in IS_FAVORITED_VALUES.keys():
             return ValidationResult(
                 False,
@@ -74,7 +74,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def validate_is_in_shoping_cart(self):
         is_in_shoping_cart: str = self.request.query_params.get(
-            "is_in_shoping_cart", None
+            "is_in_shoping_cart"
         )
         if (
             is_in_shoping_cart
@@ -219,7 +219,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                     amount_ingredient.ingredient.measurement_unit.name
                 )
 
-                ingredient = ingredients.get(name, None)
+                ingredient = ingredients.get(name)
                 if ingredient:
                     ingredient["amount"] += amount
                 else:
