@@ -39,7 +39,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     permission_classes_by_action = {
         "create": [IsAuthenticated],
         "list": [AllowAny],
-        "retriev": [AllowAny],
+        "retrieve": [AllowAny],
         "update": [IsAuthor],
         "destroy": [IsAuthor],
         "favorite": [IsAuthenticated],
