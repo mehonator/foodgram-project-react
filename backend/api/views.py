@@ -16,6 +16,7 @@ from rest_framework.response import Response
 
 from api.constants import IS_FAVORITED_VALUES, IS_IN_SHOPING_CART_VALUES
 from api.filters import IngredientFilter, RecipeFilter
+from api.mixins import ListRetrievViewSet
 from api.models import Ingredient, Recipe, Subscription, Tag
 from api.pagintors import CustomLimitOffsetPagination
 from api.permissions import IsAuthor
@@ -28,7 +29,6 @@ from api.serializers import (
     UserWithRecipesSerializer,
 )
 from api.validations import ValidationResult, validate_query_params
-from backend.api.mixins import ListRetrievViewSet
 
 CustomUser = get_user_model()
 
