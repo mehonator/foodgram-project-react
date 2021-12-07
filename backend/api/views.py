@@ -4,7 +4,7 @@ from collections import OrderedDict
 from django.contrib.auth import get_user_model
 from django.http.response import FileResponse
 from fpdf import FPDF
-from rest_framework import mixins, status, viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import (
     GenericAPIView,
@@ -28,25 +28,9 @@ from api.serializers import (
     UserWithRecipesSerializer,
 )
 from api.validations import ValidationResult, validate_query_params
+from backend.api.mixins import ListRetrievViewSet
 
 CustomUser = get_user_model()
-
-
-class ListRetrievDestroyViewSet(
-    mixins.RetrieveModelMixin,
-    mixins.ListModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet,
-):
-    pass
-
-
-class ListRetrievViewSet(
-    mixins.RetrieveModelMixin,
-    mixins.ListModelMixin,
-    viewsets.GenericViewSet,
-):
-    pass
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
