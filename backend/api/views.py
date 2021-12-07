@@ -207,7 +207,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             partial=partial,
         )
         update_serializer.is_valid(raise_exception=True)
-        instance = update_serializer.save(author=self.request.user)
+        instance = update_serializer.save(author=self.request.user, **kwargs)
         retrieve_serializer = RecipeSerializer(instance=instance, **kwargs)
 
         if getattr(instance, "_prefetched_objects_cache", None):

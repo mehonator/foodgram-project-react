@@ -4,11 +4,10 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
-from django.utils.text import slugify as dj_slugify
-from transliterate import detect_language
-from transliterate import slugify as trans_slugify
+from django.db.models.constraints import CheckConstraint
+from django.db.models.query_utils import Q
 
-from api.exceptions import NotFoundLangException
+from api.utilis import transliterate_slugify
 
 CustomUser = get_user_model()
 
@@ -45,20 +44,6 @@ class Ingredient(models.Model):
         return f"{self.name} {self.measurement_unit.name}"
 
 
-def transliterate_slugify(text: str):
-    if text.isascii():
-        return dj_slugify(text)
-
-    if detect_language(text) is not None:
-        return trans_slugify(text)
-
-    raise NotFoundLangException("Invalid language")
-
-
-def get_name(instance):
-    return instance.name
-
-
 class Tag(models.Model):
     name = models.CharField(
         verbose_name="Название",
@@ -68,7 +53,7 @@ class Tag(models.Model):
     color = ColorField(verbose_name="Цвет", blank=True, null=True)
     slug = AutoSlugField(
         verbose_name="Слаг",
-        populate_from=get_name,
+        populate_from="name",
         slugify=transliterate_slugify,
         unique=True,
     )
@@ -87,7 +72,10 @@ class Recipe(models.Model):
         unique=True,
     )
     tags = models.ManyToManyField(
-        Tag, verbose_name="Тэги", related_name="recipes", blank=True
+        Tag,
+        verbose_name="Тэги",
+        related_name="recipes",
+        blank=True,
     )
     author = models.ForeignKey(
         CustomUser,
@@ -113,7 +101,7 @@ class Recipe(models.Model):
         unique=False,
     )
     text = models.TextField(verbose_name="Описание")
-    cooking_time = models.IntegerField(
+    cooking_time = models.PositiveIntegerField(
         verbose_name="Время приготовления в минутах",
     )
     pub_date = models.DateTimeField(
@@ -155,6 +143,9 @@ class AmountIngredient(models.Model):
         ordering = ["recipe", "-amount", "ingredient"]
         verbose_name = "Количество ингредиентов"
         verbose_name_plural = "Количество ингредиентов"
+        constraints = (
+            CheckConstraint(check=Q(amount__gte=0.0), name="positive amount"),
+        )
 
     def __str__(self):
         return f"{self.recipe.name} {self.ingredient} {self.amount}"
@@ -175,7 +166,12 @@ class Subscription(models.Model):
     )
 
     class Meta:
-        unique_together = (("follower", "leader"),)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["follower", "leader"], name="unique subscription"
+            )
+        ]
+
         verbose_name = "Подписка"
         verbose_name_plural = "Подписки"
 
