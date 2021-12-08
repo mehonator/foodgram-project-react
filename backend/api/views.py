@@ -2,7 +2,7 @@ import io
 from collections import OrderedDict
 
 from django.contrib.auth import get_user_model
-from django.http.response import FileResponse
+from django.http.response import FileResponse, Http404
 from fpdf import FPDF
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -137,77 +137,61 @@ class RecipeViewSet(viewsets.ModelViewSet):
         kwargs["partial"] = True
         return self.update(request, *args, **kwargs)
 
-    @action(detail=True, methods=["get", "delete"], url_name="favorite")
-    def favorite(self, request, pk=None):
-        recipe_queryset = Recipe.objects.filter(pk=pk)
-        if not recipe_queryset.exists():
+    def add_recipe_in_category(
+        self, queryset_users, curent_user, recipe
+    ) -> Response:
+        if queryset_users.filter(pk=curent_user.pk).exists():
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={"errors": "the recipe has already been added"},
+            )
+
+        queryset_users.add(curent_user)
+        serializer = RecipeMinifiedSerializer(recipe)
+        return Response(status=status.HTTP_201_CREATED, data=serializer.data)
+
+    def del_recipe_from_category(
+        self, queryset_users, curent_user
+    ) -> Response:
+        if not queryset_users.filter(pk=curent_user.pk).exists():
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={"errors": "Recipe not added"},
+            )
+        queryset_users.remove(curent_user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def handle_recipe_category(
+        self, request, recipe_pk, related_name_category: str
+    ):
+        try:
+            recipe = Recipe.objects.get(pk=recipe_pk)
+        except Recipe.DoesNotExist:
             return Response(
                 status=status.HTTP_400_BAD_REQUEST,
                 data={"errors": "the recipe isn't exists"},
             )
 
-        recipe = recipe_queryset[0]
-        users_favorite = recipe.users_chose_as_favorite
+        category_users = getattr(recipe, related_name_category)
         if request.method == "GET":
-            if users_favorite.filter(pk=request.user.pk).exists():
-                return Response(
-                    status=status.HTTP_400_BAD_REQUEST,
-                    data={
-                        "errors": "the recipe has already"
-                        "been added to favorites"
-                    },
-                )
-
-            users_favorite.add(request.user)
-            serializer = RecipeMinifiedSerializer(recipe)
-            return Response(
-                status=status.HTTP_201_CREATED, data=serializer.data
+            return self.add_recipe_in_category(
+                category_users, request.user, recipe
             )
 
         else:
-            if not users_favorite.filter(pk=request.user.pk).exists():
-                return Response(
-                    status=status.HTTP_400_BAD_REQUEST,
-                    data={"errors": "Recipe not added to favorites"},
-                )
-            users_favorite.remove(request.user)
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            return self.del_recipe_from_category(category_users, request.user)
+
+    @action(detail=True, methods=["get", "delete"], url_name="favorite")
+    def favorite(self, request, pk=None):
+        return self.handle_recipe_category(
+            request, pk, "users_chose_as_favorite"
+        )
 
     @action(detail=True, methods=["get", "delete"], url_name="shopping_cart")
     def shopping_cart(self, request, pk=None):
-        recipe_queryset = Recipe.objects.filter(pk=pk)
-        if not recipe_queryset.exists():
-            return Response(
-                status=status.HTTP_400_BAD_REQUEST,
-                data={"errors": "the recipe isn't exists"},
-            )
-
-        recipe = recipe_queryset[0]
-        users_putted_in_cart = recipe.users_put_in_cart
-        if request.method == "GET":
-            if users_putted_in_cart.filter(pk=request.user.pk).exists():
-                return Response(
-                    status=status.HTTP_400_BAD_REQUEST,
-                    data={
-                        "errors": "the recipe has already"
-                        "been added to shopping cart"
-                    },
-                )
-
-            users_putted_in_cart.add(request.user)
-            serializer = RecipeMinifiedSerializer(recipe)
-            return Response(
-                status=status.HTTP_201_CREATED, data=serializer.data
-            )
-
-        else:
-            if not users_putted_in_cart.filter(pk=request.user.pk).exists():
-                return Response(
-                    status=status.HTTP_400_BAD_REQUEST,
-                    data={"errors": "Recipe not added to shopping cart"},
-                )
-            users_putted_in_cart.remove(request.user)
-            return Response(status=status.HTTP_204_NO_CONTENT)
+        return self.handle_recipe_category(
+            request, pk, "users_put_in_cart"
+        )
 
     def get_accumulated_ingredients(self, recipes) -> OrderedDict:
         ingredients = {}
