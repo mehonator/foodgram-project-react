@@ -2,7 +2,7 @@ import io
 from collections import OrderedDict
 
 from django.contrib.auth import get_user_model
-from django.http.response import FileResponse, Http404
+from django.http.response import FileResponse
 from fpdf import FPDF
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -17,7 +17,7 @@ from rest_framework.response import Response
 from api.constants import IS_FAVORITED_VALUES, IS_IN_SHOPING_CART_VALUES
 from api.filters import IngredientFilter, RecipeFilter
 from api.mixins import ListRetrievViewSet
-from api.models import Ingredient, Recipe, Subscription, Tag
+from api.models import AmountIngredient, Ingredient, Recipe, Subscription, Tag
 from api.pagintors import CustomLimitOffsetPagination
 from api.permissions import IsAuthor
 from api.serializers import (
@@ -64,7 +64,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def validate_is_favorited(self):
         is_favorited: str = self.request.query_params.get("is_favorited")
-        if is_favorited and is_favorited not in IS_FAVORITED_VALUES.keys():
+        if is_favorited and is_favorited not in IS_FAVORITED_VALUES:
             return ValidationResult(
                 False,
                 "is_favorited",
@@ -78,7 +78,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
         if (
             is_in_shoping_cart
-            and is_in_shoping_cart not in IS_IN_SHOPING_CART_VALUES.keys()
+            and is_in_shoping_cart not in IS_IN_SHOPING_CART_VALUES
         ):
             return ValidationResult(
                 False,
@@ -163,7 +163,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def handle_recipe_category(
         self, request, recipe_pk, related_name_category: str
-    ):
+    ) -> Response:
         try:
             recipe = Recipe.objects.get(pk=recipe_pk)
         except Recipe.DoesNotExist:
@@ -189,28 +189,32 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get", "delete"], url_name="shopping_cart")
     def shopping_cart(self, request, pk=None):
-        return self.handle_recipe_category(
-            request, pk, "users_put_in_cart"
-        )
+        return self.handle_recipe_category(request, pk, "users_put_in_cart")
 
     def get_accumulated_ingredients(self, recipes) -> OrderedDict:
         ingredients = {}
-        for recipe in recipes:
-            for amount_ingredient in recipe.amounts_ingredients.all():
-                name = f"{amount_ingredient.ingredient.name}"
-                amount = amount_ingredient.amount
-                measurement_unit = (
-                    amount_ingredient.ingredient.measurement_unit.name
-                )
+        amounts_ingredients = AmountIngredient.objects.filter(
+            recipe__in=recipes
+        ).values(
+            "amount",
+            "ingredient__name",
+            "ingredient__measurement_unit__name"
+        )
+        for amount_ingredient in amounts_ingredients:
+            name = f"{amount_ingredient['ingredient__name']}"
+            amount = amount_ingredient['amount']
+            measurement_unit = (
+                amount_ingredient["ingredient__measurement_unit__name"]
+            )
 
-                ingredient = ingredients.get(name)
-                if ingredient:
-                    ingredient["amount"] += amount
-                else:
-                    ingredients[name] = {
-                        "amount": amount,
-                        "measurement_unit": measurement_unit,
-                    }
+            ingredient = ingredients.get(name)
+            if ingredient:
+                ingredient["amount"] += amount
+            else:
+                ingredients[name] = {
+                    "amount": amount,
+                    "measurement_unit": measurement_unit,
+                }
 
         return OrderedDict(
             sorted(ingredients.items(), key=lambda item: item[0])

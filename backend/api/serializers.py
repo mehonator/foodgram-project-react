@@ -1,11 +1,10 @@
-from typing import List
-
-from django.db import models, transaction
+from django.db import transaction
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 from rest_framework.fields import CharField
 
 from api.models import AmountIngredient, CustomUser, Ingredient, Recipe, Tag
+from api.utilis import get_nonexistent_ids, is_distinct
 from users.serializers import CustomUserSerializer
 
 
@@ -108,24 +107,11 @@ class RecipeSerializer(serializers.ModelSerializer):
         return current_recipe.users_put_in_cart.filter(id=user.pk).exists()
 
 
-def is_distinct(items):
-    distinct = list(set(items))
-    distinct.sort()
-    items.sort()
-    return items == distinct
-
-
-def get_nonexistent_ids(model: models.Model, ids_objects) -> List[int]:
-    not_exists = []
-    for id_object in ids_objects:
-        if not model.objects.filter(pk=id_object).exists():
-            not_exists.append(id_object)
-    return not_exists
-
-
 class RecipeCreateUpdateSerializer(RecipeSerializer):
     ingredients = AmountIngredientRecipeCreateUpdateSerializer(many=True)
-    tags = serializers.ListField(child=serializers.IntegerField())
+    tags = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Tag.objects.all()
+    )
 
     def create_or_update_ingredients(self, recipe, ingredients_amount_id):
         amounts_instance = []
@@ -182,11 +168,6 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
         if not is_distinct(ids_tags):
             raise serializers.ValidationError(
                 "This field must be an unique ids of tags."
-            )
-        not_exists_ingredients = get_nonexistent_ids(Tag, ids_tags)
-        if not_exists_ingredients != []:
-            raise serializers.ValidationError(
-                f"Tags don't exist {not_exists_ingredients}"
             )
         return ids_tags
 
