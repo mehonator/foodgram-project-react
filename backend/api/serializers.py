@@ -151,7 +151,7 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
         many=True,
     )
 
-    def create_or_update_ingredients(self, recipe, amounts_ingredients):
+    def save_ingredients(self, recipe, amounts_ingredients):
         amounts_instance = []
         for amount_ingredient in amounts_ingredients:
             amount = amount_ingredient["amount"]
@@ -170,9 +170,7 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
         with transaction.atomic():
             amounts_ingredients = validated_data.pop("amounts_ingredients")
             saved_recipe = super().create(validated_data)
-            self.create_or_update_ingredients(
-                saved_recipe, amounts_ingredients
-            )
+            self.save_ingredients(saved_recipe, amounts_ingredients)
         return saved_recipe
 
     def update(self, recipe, validated_data):
@@ -182,7 +180,7 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
             saved_recipe = super().update(recipe, validated_data)
             if amounts_ingredients:
                 saved_recipe.amounts_ingredients.all().delete()
-                self.create_or_update_ingredients(recipe, amounts_ingredients)
+                self.save_ingredients(recipe, amounts_ingredients)
         return saved_recipe
 
     def validate_ingredients(self, amounts_ingredients):
@@ -196,13 +194,6 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
                 raise serializers.ValidationError(
                     "This field must be an povitive amount of ingredients."
                 )
-        # not_exists_ingredients = get_nonexistent_ids(
-        #     Ingredient, ids_ingredients
-        # )
-        # if not_exists_ingredients != []:
-        #     raise serializers.ValidationError(
-        #         f"Ingredients don't exist {not_exists_ingredients}"
-        #     )
         return amounts_ingredients
 
     def validate_tags(self, ids_tags):

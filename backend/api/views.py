@@ -94,27 +94,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop("partial", False)
-        kwargs.setdefault("context", self.get_serializer_context())
-        kwargs.pop("pk")
-
-        instance = self.get_object()
-        update_serializer = RecipeCreateUpdateSerializer(
-            instance,
-            data=request.data,
-            partial=partial,
-        )
-        update_serializer.is_valid(raise_exception=True)
-        instance = update_serializer.save(author=self.request.user, **kwargs)
-        retrieve_serializer = RecipeSerializer(instance=instance, **kwargs)
-
-        if getattr(instance, "_prefetched_objects_cache", None):
-            # If 'prefetch_related' has been applied to a queryset, we need to
-            # forcibly invalidate the prefetch cache on the instance.
-            instance._prefetched_objects_cache = {}
-
-        return Response(retrieve_serializer.data)
+    def perform_update(self, serializer):
+        serializer.save(author=self.request.user)
 
     def partial_update(self, request, *args, **kwargs):
         kwargs["partial"] = True
