@@ -1,11 +1,7 @@
-from django.contrib.auth import get_user_model
-from django.urls import include
-from django.urls import path
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from users.views import CustomUserViewSet
-
-CustomUser = get_user_model()
 
 app_name = "users"
 

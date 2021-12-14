@@ -3,8 +3,8 @@ from typing import List
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-SECRET_KEY = os.environ.get("SECRET_KEY")
-DEBUG = os.environ.get("DEBUG")
+SECRET_KEY = "4@^u7gw$q_upbr+c1gppr*@ah_e+*9%tdk4n0hrsp^=yl*2)w$"
+DEBUG = True
 
 ALLOWED_HOSTS: List[str] = [
     ".localhost",
@@ -26,8 +26,8 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "colorfield",
     "django_filters",
-    "djoser",
     "api",
+    "djoser",
     "users",
 ]
 
@@ -65,17 +65,8 @@ WSGI_APPLICATION = "backend.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": os.environ.get("DB_ENGINE", "django.db.backends.postgresql"),
-        "NAME": os.environ.get("DB_NAME"),
-        "USER": os.environ.get("DB_USER"),
-        "PASSWORD": os.environ.get("DB_PASSWORD"),
-        "HOST": os.environ.get("DB_HOST"),
-        "PORT": os.environ.get("DB_PORT"),
-    },
-    "test": {
-        "ENGINE": os.environ.get("DB_ENGINE", "django.db.backends.postgresql"),
-        "NAME": os.environ.get("DB_NAME"),
-        "USER": os.environ.get("DB_USER"),
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": "sqlite-test",
     },
 }
 
@@ -109,10 +100,10 @@ USE_L10N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
-STATIC_ROOT = "/var/html/static/"
+STATIC_ROOT = "./static/"
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = "/var/html/media/"
+MEDIA_ROOT = "./media/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

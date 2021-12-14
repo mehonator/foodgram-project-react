@@ -1,16 +1,31 @@
 from django.db import transaction
-from django.shortcuts import get_list_or_404
-from django.shortcuts import get_object_or_404
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 from rest_framework.fields import CharField
 
-from api.models import AmountIngredient
-from api.models import CustomUser
-from api.models import Ingredient
-from api.models import Recipe
-from api.models import Tag
+from api.models import AmountIngredient, Ingredient, Recipe, Tag
+from api.utilis import is_distinct
+from users.models import CustomUser
 from users.serializers import CustomUserSerializer
+
+
+class PrimaryKeyRelatedFieldAlternative(serializers.PrimaryKeyRelatedField):
+    def __init__(self, **kwargs):
+        self.serializer = kwargs.pop("serializer", None)
+        if self.serializer is not None and not issubclass(
+            self.serializer, serializers.Serializer
+        ):
+            raise TypeError('"serializer" is not a valid serializer class')
+
+        super().__init__(**kwargs)
+
+    def use_pk_only_optimization(self):
+        return False if self.serializer else True
+
+    def to_representation(self, instance):
+        if self.serializer:
+            return self.serializer(instance, context=self.context).data
+        return super().to_representation(instance)
 
 
 class IngredientSerializer(serializers.ModelSerializer):
@@ -43,6 +58,9 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 class AmountIngredientRecipeSerializer(serializers.ModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(
+        required=True, queryset=Ingredient.objects.all()
+    )
     name = CharField(read_only=True, source="ingredient.name")
     measurement_unit = CharField(
         read_only=True, source="ingredient.measurement_unit"
@@ -58,9 +76,20 @@ class AmountIngredientRecipeSerializer(serializers.ModelSerializer):
         )
 
 
-class AmountIngredientRecipeCreateUpdateSerializer(serializers.Serializer):
-    id = serializers.IntegerField(required=True)
+class AmountIngredientRecipeCreateUpdateSerializer(
+    serializers.ModelSerializer
+):
+    id = serializers.PrimaryKeyRelatedField(
+        required=True, queryset=Ingredient.objects.all()
+    )
     amount = serializers.FloatField(required=True)
+
+    class Meta:
+        model = AmountIngredient
+        fields = (
+            "id",
+            "amount",
+        )
 
 
 class RecipeMinifiedSerializer(serializers.ModelSerializer):
@@ -113,69 +142,75 @@ class RecipeSerializer(serializers.ModelSerializer):
 
 
 class RecipeCreateUpdateSerializer(RecipeSerializer):
-    ingredients = AmountIngredientRecipeCreateUpdateSerializer(many=True)
-    tags = serializers.ListField(child=serializers.IntegerField())
+    ingredients = AmountIngredientRecipeSerializer(
+        source="amounts_ingredients", many=True
+    )
+    tags = PrimaryKeyRelatedFieldAlternative(
+        queryset=Tag.objects.all(),
+        serializer=TagSerializer,
+        many=True,
+    )
+
+    def create_or_update_ingredients(self, recipe, amounts_ingredients):
+        amounts_instance = []
+        for amount_ingredient in amounts_ingredients:
+            amount = amount_ingredient["amount"]
+            ingredient = amount_ingredient["id"]
+            amounts_instance.append(
+                AmountIngredient(
+                    amount=amount,
+                    recipe=recipe,
+                    ingredient=ingredient,
+                )
+            )
+        AmountIngredient.objects.bulk_create(amounts_instance)
 
     def create(self, validated_data):
         # the transaction is needed to rollback the creation of amounts
         with transaction.atomic():
-            tags_ids = validated_data["tags"]
-            tags = get_list_or_404(Tag, pk__in=tags_ids)
-
-            recipe = Recipe.objects.create(
-                author=self.context["request"].user,
-                name=validated_data["name"],
-                image=validated_data["image"],
-                text=validated_data["text"],
-                cooking_time=validated_data["cooking_time"],
+            amounts_ingredients = validated_data.pop("amounts_ingredients")
+            saved_recipe = super().create(validated_data)
+            self.create_or_update_ingredients(
+                saved_recipe, amounts_ingredients
             )
-
-            amounts_instance = []
-            for ingredient_data in validated_data["ingredients"]:
-                amount = ingredient_data["amount"]
-                amounts_instance.append(
-                    AmountIngredient(
-                        amount=amount,
-                        recipe=recipe,
-                        ingredient=Ingredient.objects.get(
-                            pk=ingredient_data["id"]
-                        ),
-                    )
-                )
-            AmountIngredient.objects.bulk_create(amounts_instance)
-            recipe.tags.set(tags)
-
-        return recipe
+        return saved_recipe
 
     def update(self, recipe, validated_data):
         # the transaction is needed to rollback the creation of amounts
         with transaction.atomic():
-            tags_ids = validated_data.pop("tags", None)
-            if tags_ids:
-                tags = get_list_or_404(Tag, pk__in=tags_ids)
-                recipe.tags.set(tags)
+            amounts_ingredients = validated_data.pop("amounts_ingredients")
+            saved_recipe = super().update(recipe, validated_data)
+            if amounts_ingredients:
+                saved_recipe.amounts_ingredients.all().delete()
+                self.create_or_update_ingredients(recipe, amounts_ingredients)
+        return saved_recipe
 
-            ingredients = validated_data.pop("ingredients", None)
-            if ingredients:
-                recipe.amounts_ingredients.all().delete()
-                new_amounts_intstance = []
-                for ingredient in ingredients:
-                    id, amount = ingredient.values()
-                    new_amounts_intstance.append(
-                        AmountIngredient(
-                            amount=amount,
-                            recipe=recipe,
-                            ingredient=get_object_or_404(
-                                Ingredient, pk=id
-                            ),
-                        )
-                    )
-                AmountIngredient.objects.bulk_create(new_amounts_intstance)
+    def validate_ingredients(self, amounts_ingredients):
+        ids_ingredients = [i["id"] for i in amounts_ingredients]
+        if not is_distinct(ids_ingredients):
+            raise serializers.ValidationError(
+                "This field must be an unique ids of ingredients."
+            )
+        for amount_ingredient in amounts_ingredients:
+            if amount_ingredient["amount"] < 0:
+                raise serializers.ValidationError(
+                    "This field must be an povitive amount of ingredients."
+                )
+        # not_exists_ingredients = get_nonexistent_ids(
+        #     Ingredient, ids_ingredients
+        # )
+        # if not_exists_ingredients != []:
+        #     raise serializers.ValidationError(
+        #         f"Ingredients don't exist {not_exists_ingredients}"
+        #     )
+        return amounts_ingredients
 
-            for attribute, value in validated_data.items():
-                setattr(recipe, attribute, value)
-            recipe.save()
-        return recipe
+    def validate_tags(self, ids_tags):
+        if not is_distinct(ids_tags):
+            raise serializers.ValidationError(
+                "This field must be an unique ids of tags."
+            )
+        return ids_tags
 
 
 class UserWithRecipesSerializer(serializers.ModelSerializer):
