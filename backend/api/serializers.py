@@ -3,8 +3,9 @@ from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 from rest_framework.fields import CharField
 
-from api.models import AmountIngredient, CustomUser, Ingredient, Recipe, Tag
+from api.models import AmountIngredient, Ingredient, Recipe, Tag
 from api.utilis import is_distinct
+from users.models import CustomUser
 from users.serializers import CustomUserSerializer
 
 

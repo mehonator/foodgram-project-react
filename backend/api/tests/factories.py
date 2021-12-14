@@ -1,5 +1,4 @@
 import factory
-from django.contrib.auth import get_user_model
 
 from api.models import (
     AmountIngredient,
@@ -9,9 +8,8 @@ from api.models import (
     Tag,
     transliterate_slugify,
 )
+from users.models import CustomUser
 from users.tests.factories import CustomUserFactory
-
-CustomUser = get_user_model()
 
 TAGS_COLORS = [
     "#ff0000",

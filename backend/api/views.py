@@ -1,7 +1,6 @@
 import io
 from collections import OrderedDict
 
-from django.contrib.auth import get_user_model
 from django.http.response import FileResponse
 from fpdf import FPDF
 from rest_framework import status, viewsets
@@ -29,8 +28,7 @@ from api.serializers import (
     UserWithRecipesSerializer,
 )
 from api.validations import ValidationResult, validate_query_params
-
-CustomUser = get_user_model()
+from users.models import CustomUser
 
 
 class RecipeViewSet(viewsets.ModelViewSet):

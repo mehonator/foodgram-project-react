@@ -1,6 +1,5 @@
 from autoslug import AutoSlugField
 from colorfield.fields import ColorField
-from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -8,8 +7,7 @@ from django.db.models.constraints import CheckConstraint
 from django.db.models.query_utils import Q
 
 from api.utilis import transliterate_slugify
-
-CustomUser = get_user_model()
+from users.models import CustomUser
 
 
 class MeasurementUnit(models.Model):

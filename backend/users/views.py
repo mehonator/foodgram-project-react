@@ -1,8 +1,5 @@
-from django.contrib.auth import get_user_model
 from djoser.views import UserViewSet
 from rest_framework.pagination import LimitOffsetPagination
-
-CustomUser = get_user_model()
 
 
 class CustomLimitOffsetPagination(LimitOffsetPagination):

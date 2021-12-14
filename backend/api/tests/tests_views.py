@@ -5,7 +5,6 @@ from collections import namedtuple
 from os.path import basename
 from typing import Dict, List
 
-from django.contrib.auth import get_user_model
 from django.core.files.images import ImageFile
 from django.test import TestCase
 from django.test.utils import override_settings
@@ -22,10 +21,8 @@ from api.tests.factories import (
     RecipeFactory,
     TagFactory,
 )
+from users.models import CustomUser
 from users.tests.factories import CustomUserFactory
-
-CustomUser = get_user_model()
-
 
 USER = {
     "username": "Test_urser",
