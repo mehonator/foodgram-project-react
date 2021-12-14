@@ -1,4 +1,5 @@
 from typing import List
+
 from django.db import models
 from django.utils.text import slugify as dj_slugify
 from transliterate import detect_language

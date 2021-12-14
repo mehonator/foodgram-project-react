@@ -93,23 +93,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         return super().list(self, request, *args, **kwargs)
 
-    def create(self, request, *args, **kwargs):
-        kwargs.setdefault("context", self.get_serializer_context())
-        create_serializer = RecipeCreateUpdateSerializer(
-            data=request.data, *args, **kwargs
-        )
-        create_serializer.is_valid(raise_exception=True)
-        recipe = create_serializer.save(author=self.request.user)
-
-        retrieve_serializer = RecipeSerializer(
-            instance=recipe, *args, **kwargs
-        )
-        headers = self.get_success_headers(retrieve_serializer.data)
-        return Response(
-            retrieve_serializer.data,
-            status=status.HTTP_201_CREATED,
-            headers=headers,
-        )
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
@@ -196,16 +181,14 @@ class RecipeViewSet(viewsets.ModelViewSet):
         amounts_ingredients = AmountIngredient.objects.filter(
             recipe__in=recipes
         ).values(
-            "amount",
-            "ingredient__name",
-            "ingredient__measurement_unit__name"
+            "amount", "ingredient__name", "ingredient__measurement_unit__name"
         )
         for amount_ingredient in amounts_ingredients:
             name = f"{amount_ingredient['ingredient__name']}"
-            amount = amount_ingredient['amount']
-            measurement_unit = (
-                amount_ingredient["ingredient__measurement_unit__name"]
-            )
+            amount = amount_ingredient["amount"]
+            measurement_unit = amount_ingredient[
+                "ingredient__measurement_unit__name"
+            ]
 
             ingredient = ingredients.get(name)
             if ingredient:
