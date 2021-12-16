@@ -26,8 +26,8 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Push to Docker Hub
         uses: docker/build-push-action@v2
-        working-directory: ./backend
         with:
+          context: ./backend
           push: true
           tags: mehonator/foodram-backend:latest
 
