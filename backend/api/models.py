@@ -96,7 +96,6 @@ class Recipe(models.Model):
     image = models.ImageField(
         upload_to=r"recipes/%Y/%m/%d/",
         verbose_name="Изображение",
-        unique=False,
     )
     text = models.TextField(verbose_name="Описание")
     cooking_time = models.PositiveIntegerField(

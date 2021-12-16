@@ -3,29 +3,11 @@ from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 from rest_framework.fields import CharField
 
+from api.fields import PrimaryKeyRelatedFieldAlternative
 from api.models import AmountIngredient, Ingredient, Recipe, Tag
 from api.utilis import is_distinct
 from users.models import CustomUser
 from users.serializers import CustomUserSerializer
-
-
-class PrimaryKeyRelatedFieldAlternative(serializers.PrimaryKeyRelatedField):
-    def __init__(self, **kwargs):
-        self.serializer = kwargs.pop("serializer", None)
-        if self.serializer is not None and not issubclass(
-            self.serializer, serializers.Serializer
-        ):
-            raise TypeError('"serializer" is not a valid serializer class')
-
-        super().__init__(**kwargs)
-
-    def use_pk_only_optimization(self):
-        return False if self.serializer else True
-
-    def to_representation(self, instance):
-        if self.serializer:
-            return self.serializer(instance, context=self.context).data
-        return super().to_representation(instance)
 
 
 class IngredientSerializer(serializers.ModelSerializer):
@@ -192,7 +174,7 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
         for amount_ingredient in amounts_ingredients:
             if amount_ingredient["amount"] < 0:
                 raise serializers.ValidationError(
-                    "This field must be an povitive amount of ingredients."
+                    "This field must be an positive amount of ingredients."
                 )
         return amounts_ingredients
 
@@ -202,6 +184,13 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
                 "This field must be an unique ids of tags."
             )
         return ids_tags
+
+    def validate_cooking_time(self, cooking_times):
+        if cooking_times < 0:
+            raise serializers.ValidationError(
+                "This field must be positive."
+            )
+        return cooking_times
 
 
 class UserWithRecipesSerializer(serializers.ModelSerializer):
