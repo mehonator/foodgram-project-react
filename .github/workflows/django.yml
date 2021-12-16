@@ -2,9 +2,11 @@ name: Backend Test CI
 
 on:
   push:
-    branches: [ backend-test ]
+    branches: 
+    - 'backend-test'
   pull_request:
-    branches: [ backend-test ]
+    branches: 
+     - 'backend-test'
 
 jobs:
   build:
