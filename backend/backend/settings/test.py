@@ -4,7 +4,7 @@ from typing import List
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SECRET_KEY = "4@^u7gw$q_upbr+c1gppr*@ah_e+*9%tdk4n0hrsp^=yl*2)w$"
-DEBUG = "True"
+DEBUG = True
 
 ALLOWED_HOSTS: List[str] = [
     ".localhost",
@@ -65,13 +65,9 @@ WSGI_APPLICATION = "backend.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": os.environ.get("DB_ENGINE", "django.db.backends.postgresql"),
-        "NAME": os.environ.get("DB_NAME"),
-        "USER": os.environ.get("POSTGRES_USER"),
-        "PASSWORD": os.environ.get("POSTGRES_PASSWORD"),
-        "HOST": os.environ.get("DB_HOST"),
-        "PORT": os.environ.get("DB_PORT"),
-    }
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": "sqlite-test",
+    },
 }
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -118,6 +114,9 @@ DJOSER = {
         "current_user": "users.serializers.CustomUserSerializer",
     },
     "LOGIN_FIELD": "email",
+    "PERMISSIONS": {
+        "user_list": ["rest_framework.permissions.AllowAny"],
+    },
 }
 
 REST_FRAMEWORK = {

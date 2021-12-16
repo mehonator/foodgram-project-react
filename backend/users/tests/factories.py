@@ -4,13 +4,13 @@ from ..models import CustomUser
 
 
 class CustomUserFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = CustomUser
-
     username = factory.Sequence(lambda n: f"username_{n}")
     email = factory.Sequence(lambda n: f"username_{n}@email.com")
     first_name = factory.Sequence(lambda n: f"Имя_{n}")
     last_name = factory.Sequence(lambda n: f"Фамилия_{n}")
+
+    class Meta:
+        model = CustomUser
 
     @staticmethod
     def user_to_dict(user: CustomUser, request_user: CustomUser) -> dict:

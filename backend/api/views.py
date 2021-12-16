@@ -1,124 +1,34 @@
-from collections import namedtuple
-from collections import OrderedDict
 import io
-from typing import List
+from collections import OrderedDict
 
-from django.contrib.auth import get_user_model
 from django.http.response import FileResponse
-import django_filters
 from fpdf import FPDF
-from rest_framework import filters
-from rest_framework import mixins
-from rest_framework import status
-from rest_framework import viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.generics import GenericAPIView
-from rest_framework.generics import get_object_or_404
-from rest_framework.generics import ListAPIView
-from rest_framework.pagination import LimitOffsetPagination
-from rest_framework.permissions import AllowAny
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.generics import (
+    GenericAPIView,
+    ListAPIView,
+    get_object_or_404,
+)
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from api.models import Ingredient
-from api.models import Recipe
-from api.models import Subscription
-from api.models import Tag
+from api.constants import IS_FAVORITED_VALUES, IS_IN_SHOPING_CART_VALUES
+from api.filters import IngredientFilter, RecipeFilter
+from api.mixins import ListRetrievViewSet
+from api.models import AmountIngredient, Ingredient, Recipe, Subscription, Tag
+from api.pagintors import CustomLimitOffsetPagination
 from api.permissions import IsAuthor
-from api.serializers import IngredientSerializer
-from api.serializers import RecipeCreateUpdateSerializer
-from api.serializers import RecipeMinifiedSerializer
-from api.serializers import RecipeSerializer
-from api.serializers import TagSerializer
-from api.serializers import UserWithRecipesSerializer
-
-CustomUser = get_user_model()
-
-
-IS_FAVORITED_VALUES = {
-    "true": True,
-    "false": False,
-}
-
-
-IS_IN_SHOPING_CART_VALUES = {
-    "true": True,
-    "false": False,
-}
-
-ValidationResult = namedtuple(
-    "ValidationResult", ["is_valid", "query_param", "error_msg"]
+from api.serializers import (
+    IngredientSerializer,
+    RecipeCreateUpdateSerializer,
+    RecipeMinifiedSerializer,
+    RecipeSerializer,
+    TagSerializer,
+    UserWithRecipesSerializer,
 )
-
-
-class CustomLimitOffsetPagination(LimitOffsetPagination):
-    default_limit = 100
-
-
-def validate_query_params(validators: List):
-    def decorator(method):
-        def wrapper(self, *args, **kwargs):
-            params_errors = {}
-            for validate in validators:
-                validation = validate(self)
-                if not validation.is_valid:
-                    params_errors[
-                        validation.query_param
-                    ] = validation.error_msg
-
-            if params_errors:
-                return Response(
-                    status=status.HTTP_400_BAD_REQUEST,
-                    data=params_errors,
-                )
-
-            return method(self, *args, **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
-class ListRetrievDestroyViewSet(
-    mixins.RetrieveModelMixin,
-    mixins.ListModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet,
-):
-    pass
-
-
-class ListRetrievViewSet(
-    mixins.RetrieveModelMixin,
-    mixins.ListModelMixin,
-    viewsets.GenericViewSet,
-):
-    pass
-
-
-class RecipeFilter(django_filters.FilterSet):
-    author = django_filters.NumberFilter()
-    tags = django_filters.AllValuesMultipleFilter(field_name="tags__slug")
-    is_favorited = django_filters.CharFilter(method="get_is_favorited")
-    is_in_shopping_cart = django_filters.CharFilter(
-        method="get_is_in_shopping_cart"
-    )
-
-    class Meta:
-        model = Recipe
-        fields = ("author", "tags", "is_favorited")
-
-    def get_is_favorited(self, queryset, name, value):
-        if IS_FAVORITED_VALUES[value]:
-            return queryset.filter(users_chose_as_favorite=self.request.user)
-        else:
-            return queryset.exclude(users_chose_as_favorite=self.request.user)
-
-    def get_is_in_shopping_cart(self, queryset, name, value):
-        if IS_IN_SHOPING_CART_VALUES[value]:
-            return queryset.filter(users_put_in_cart=self.request.user)
-        else:
-            return queryset.exclude(users_put_in_cart=self.request.user)
+from api.validations import ValidationResult, validate_query_params
+from users.models import CustomUser
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -127,7 +37,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     permission_classes_by_action = {
         "create": [IsAuthenticated],
         "list": [AllowAny],
-        "retriev": [AllowAny],
+        "retrieve": [AllowAny],
         "update": [IsAuthor],
         "destroy": [IsAuthor],
         "favorite": [IsAuthenticated],
@@ -151,8 +61,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return [permission() for permission in self.permission_classes]
 
     def validate_is_favorited(self):
-        is_favorited: str = self.request.query_params.get("is_favorited", None)
-        if is_favorited and is_favorited not in IS_FAVORITED_VALUES.keys():
+        is_favorited: str = self.request.query_params.get("is_favorited")
+        if is_favorited and is_favorited not in IS_FAVORITED_VALUES:
             return ValidationResult(
                 False,
                 "is_favorited",
@@ -162,11 +72,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def validate_is_in_shoping_cart(self):
         is_in_shoping_cart: str = self.request.query_params.get(
-            "is_in_shoping_cart", None
+            "is_in_shoping_cart"
         )
         if (
             is_in_shoping_cart
-            and is_in_shoping_cart not in IS_IN_SHOPING_CART_VALUES.keys()
+            and is_in_shoping_cart not in IS_IN_SHOPING_CART_VALUES
         ):
             return ValidationResult(
                 False,
@@ -181,138 +91,92 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         return super().list(self, request, *args, **kwargs)
 
-    def create(self, request, *args, **kwargs):
-        kwargs.setdefault("context", self.get_serializer_context())
-        create_serializer = RecipeCreateUpdateSerializer(
-            data=request.data, *args, **kwargs
-        )
-        create_serializer.is_valid(raise_exception=True)
-        recipe = create_serializer.save(author=self.request.user)
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
 
-        retrieve_serializer = RecipeSerializer(
-            instance=recipe, *args, **kwargs
-        )
-        headers = self.get_success_headers(retrieve_serializer.data)
-        return Response(
-            retrieve_serializer.data,
-            status=status.HTTP_201_CREATED,
-            headers=headers,
-        )
+    def perform_update(self, serializer):
+        serializer.save(author=self.request.user)
 
-    def update(self, request, *args, **kwargs):
-        kwargs.setdefault("context", self.get_serializer_context())
-        kwargs.pop("pk")
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)
 
-        instance = self.get_object()
-        update_serializer = RecipeCreateUpdateSerializer(
-            instance,
-            data=request.data,
-            partial=False,
-        )
-        update_serializer.is_valid(raise_exception=True)
-        instance = update_serializer.save(author=self.request.user)
-        retrieve_serializer = RecipeSerializer(
-            instance=instance, data=request.data, *args, **kwargs
-        )
-        retrieve_serializer.is_valid(raise_exception=True)
+    def add_recipe_in_category(
+        self, queryset_users, curent_user, recipe
+    ) -> Response:
+        if queryset_users.filter(pk=curent_user.pk).exists():
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={"errors": "the recipe has already been added"},
+            )
 
-        if getattr(instance, "_prefetched_objects_cache", None):
-            # If 'prefetch_related' has been applied to a queryset, we need to
-            # forcibly invalidate the prefetch cache on the instance.
-            instance._prefetched_objects_cache = {}
+        queryset_users.add(curent_user)
+        serializer = RecipeMinifiedSerializer(recipe)
+        return Response(status=status.HTTP_201_CREATED, data=serializer.data)
 
-        return Response(retrieve_serializer.data)
+    def del_recipe_from_category(
+        self, queryset_users, curent_user
+    ) -> Response:
+        if not queryset_users.filter(pk=curent_user.pk).exists():
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={"errors": "Recipe not added"},
+            )
+        queryset_users.remove(curent_user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def handle_recipe_category(
+        self, request, recipe_pk, related_name_category: str
+    ) -> Response:
+        try:
+            recipe = Recipe.objects.get(pk=recipe_pk)
+        except Recipe.DoesNotExist:
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={"errors": "the recipe isn't exists"},
+            )
+
+        category_users = getattr(recipe, related_name_category)
+        if request.method == "GET":
+            return self.add_recipe_in_category(
+                category_users, request.user, recipe
+            )
+
+        else:
+            return self.del_recipe_from_category(category_users, request.user)
 
     @action(detail=True, methods=["get", "delete"], url_name="favorite")
     def favorite(self, request, pk=None):
-        recipe_queryset = Recipe.objects.filter(pk=pk)
-        if not recipe_queryset.exists():
-            return Response(
-                status=status.HTTP_400_BAD_REQUEST,
-                data={"errors": "the recipe isn't exists"},
-            )
-
-        recipe = recipe_queryset[0]
-        users_favorite = recipe.users_chose_as_favorite
-        if request.method == "GET":
-            if users_favorite.filter(pk=request.user.pk).exists():
-                return Response(
-                    status=status.HTTP_400_BAD_REQUEST,
-                    data={
-                        "errors": "the recipe has already"
-                        "been added to favorites"
-                    },
-                )
-
-            users_favorite.add(request.user)
-            serializer = RecipeMinifiedSerializer(recipe)
-            return Response(
-                status=status.HTTP_201_CREATED, data=serializer.data
-            )
-
-        else:
-            if not users_favorite.filter(pk=request.user.pk).exists():
-                return Response(
-                    status=status.HTTP_400_BAD_REQUEST,
-                    data={"errors": "Recipe not added to favorites"},
-                )
-            users_favorite.remove(request.user)
-            return Response(status=status.HTTP_204_NO_CONTENT)
+        return self.handle_recipe_category(
+            request, pk, "users_chose_as_favorite"
+        )
 
     @action(detail=True, methods=["get", "delete"], url_name="shopping_cart")
     def shopping_cart(self, request, pk=None):
-        recipe_queryset = Recipe.objects.filter(pk=pk)
-        if not recipe_queryset.exists():
-            return Response(
-                status=status.HTTP_400_BAD_REQUEST,
-                data={"errors": "the recipe isn't exists"},
-            )
-
-        recipe = recipe_queryset[0]
-        users_putted_in_cart = recipe.users_put_in_cart
-        if request.method == "GET":
-            if users_putted_in_cart.filter(pk=request.user.pk).exists():
-                return Response(
-                    status=status.HTTP_400_BAD_REQUEST,
-                    data={
-                        "errors": "the recipe has already"
-                        "been added to shopping cart"
-                    },
-                )
-
-            users_putted_in_cart.add(request.user)
-            serializer = RecipeMinifiedSerializer(recipe)
-            return Response(
-                status=status.HTTP_201_CREATED, data=serializer.data
-            )
-
-        else:
-            if not users_putted_in_cart.filter(pk=request.user.pk).exists():
-                return Response(
-                    status=status.HTTP_400_BAD_REQUEST,
-                    data={"errors": "Recipe not added to shopping cart"},
-                )
-            users_putted_in_cart.remove(request.user)
-            return Response(status=status.HTTP_204_NO_CONTENT)
+        return self.handle_recipe_category(request, pk, "users_put_in_cart")
 
     def get_accumulated_ingredients(self, recipes) -> OrderedDict:
         ingredients = {}
-        for recipe in recipes:
-            for amount_ingredient in recipe.amounts_ingredients.all():
-                name = f"{amount_ingredient.ingredient.name}"
-                amount = amount_ingredient.amount
-                measurement_unit = (
-                    amount_ingredient.ingredient.measurement_unit.name
-                )
+        amounts_ingredients = AmountIngredient.objects.filter(
+            recipe__in=recipes
+        ).values(
+            "amount", "ingredient__name", "ingredient__measurement_unit__name"
+        )
+        for amount_ingredient in amounts_ingredients:
+            name = f"{amount_ingredient['ingredient__name']}"
+            amount = amount_ingredient["amount"]
+            measurement_unit = amount_ingredient[
+                "ingredient__measurement_unit__name"
+            ]
 
-                ingredient = ingredients.get(name, None)
-                if ingredient:
-                    ingredient["amount"] += amount
-                else:
-                    ingredients[name] = {
-                        "amount": amount,
-                        "measurement_unit": measurement_unit,
-                    }
+            ingredient = ingredients.get(name)
+            if ingredient:
+                ingredient["amount"] += amount
+            else:
+                ingredients[name] = {
+                    "amount": amount,
+                    "measurement_unit": measurement_unit,
+                }
 
         return OrderedDict(
             sorted(ingredients.items(), key=lambda item: item[0])
@@ -357,8 +221,7 @@ class IngredientViewSet(ListRetrievViewSet):
     queryset = Ingredient.objects.all().order_by("id")
     serializer_class = IngredientSerializer
     permission_classes = [AllowAny]
-    filter_backends = [filters.SearchFilter]
-    search_fields = ["name"]
+    filter_class = IngredientFilter
 
 
 class TagViewSet(ListRetrievViewSet):
@@ -379,6 +242,13 @@ class SubscriptionList(ListAPIView):
 
 
 class SubscriptionCreateDestroy(GenericAPIView):
+    def delete(self, request, user_id):
+        subscription = get_object_or_404(
+            Subscription, follower=request.user, leader_id=user_id
+        )
+        subscription.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def get(self, request, user_id):
         kwargs = {"context": self.get_serializer_context()}
         leader = get_object_or_404(CustomUser, id=user_id)
@@ -386,10 +256,3 @@ class SubscriptionCreateDestroy(GenericAPIView):
         Subscription.objects.create(follower=request.user, leader=leader)
         serializer = UserWithRecipesSerializer(instance=leader, **kwargs)
         return Response(data=serializer.data, status=status.HTTP_201_CREATED)
-
-    def delete(self, request, user_id):
-        subscription = get_object_or_404(
-            Subscription, follower=request.user, leader_id=user_id
-        )
-        subscription.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)

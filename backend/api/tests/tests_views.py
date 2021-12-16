@@ -1,11 +1,10 @@
 import base64
-from collections import namedtuple
 import json
-from os.path import basename
 import shutil
+from collections import namedtuple
+from os.path import basename
 from typing import Dict, List
 
-from django.contrib.auth import get_user_model
 from django.core.files.images import ImageFile
 from django.test import TestCase
 from django.test.utils import override_settings
@@ -13,21 +12,17 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.models import Ingredient
-from api.models import Recipe
-from api.models import Subscription
-from api.models import Tag
-from api.serializers import RecipeMinifiedSerializer
-from api.serializers import UserWithRecipesSerializer
-from api.tests.factories import AmountIngredientFactory
-from api.tests.factories import IngredientFactory
-from api.tests.factories import MeasurementUnitFactory
-from api.tests.factories import RecipeFactory
-from api.tests.factories import TagFactory
+from api.models import Ingredient, Recipe, Subscription, Tag
+from api.serializers import RecipeMinifiedSerializer, UserWithRecipesSerializer
+from api.tests.factories import (
+    AmountIngredientFactory,
+    IngredientFactory,
+    MeasurementUnitFactory,
+    RecipeFactory,
+    TagFactory,
+)
+from users.models import CustomUser
 from users.tests.factories import CustomUserFactory
-
-CustomUser = get_user_model()
-
 
 USER = {
     "username": "Test_urser",
@@ -156,7 +151,7 @@ class IngredientsTests(TestCase):
     def test_search_ingredients(self):
         ingredient = IngredientsTests.ingredients[0]
         response = IngredientsTests.client.get(
-            reverse(URLS["ingredients-list"]), {"search": ingredient.name}
+            reverse(URLS["ingredients-list"]), {"name": ingredient.name}
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         expected_result = [
@@ -340,15 +335,11 @@ class RecipesTests(TestCase):
         )
 
     def test_create(self):
-        tag = Tag.objects.first()
-        ingredient = Ingredient.objects.first()
         create_data = {
             "name": "Нечто восхитительное",
-            "tags": [
-                {"id": tag.id},
-            ],
+            "tags": [Tag.objects.first().id],
             "ingredients": [
-                {"id": ingredient.id, "amount": 10},
+                {"id": Ingredient.objects.first().id, "amount": 10},
             ],
             "image": IMAGE_BASE64,
             "text": (
@@ -385,9 +376,7 @@ class RecipesTests(TestCase):
     def test_update(self):
         update_data = {
             "name": "Теперь тут плов",
-            "tags": [
-                {"id": Tag.objects.first().id},
-            ],
+            "tags": [Tag.objects.first().id],
             "ingredients": [
                 {"id": Ingredient.objects.first().id, "amount": 2},
             ],

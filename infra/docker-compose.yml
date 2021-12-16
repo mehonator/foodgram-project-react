@@ -2,6 +2,7 @@ version: '3.3'
 services:
   db:
     image: postgres:12.4
+    restart: always
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     env_file:
@@ -12,8 +13,6 @@ services:
       context: ../backend
       dockerfile: Dockerfile
     restart: always
-    ports:
-      - 8000:8000
     volumes:
       - static_value:/var/html/static/
       - media_value:/var/html/media/
@@ -31,6 +30,7 @@ services:
 
   nginx:
     image: nginx:1.19.3
+    restart: always
     ports:
       - 80:80
     volumes:
@@ -38,6 +38,8 @@ services:
       - ../frontend/build:/usr/share/nginx/html/
       - ../docs/redoc.html:/usr/share/nginx/html/api/docs/redoc.html
       - ../docs/openapi-schema.yml:/usr/share/nginx/html/api/docs/openapi-schema.yml
+      - static_value:/var/html/static/
+      - media_value:/var/html/media/
     
     depends_on:
       - frontend
