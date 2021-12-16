@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - 'master'
+      - '!backend-test'
   pull_request:
     branches:
       - 'master'
+      - '!backend-test'
+
 jobs:
   build:
     runs-on: ubuntu-latest
