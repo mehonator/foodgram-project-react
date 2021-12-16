@@ -1,5 +1,11 @@
 {
     "python.linting.flake8Enabled": true,
     "python.linting.mypyEnabled": false,
-    "python.linting.enabled": true
+    "python.linting.enabled": true,
+    "python.pythonPath": "/home/mikhail/Dev/foodgram-project-react/backend/venv/bin/python",
+    "cornflakes.linter.executablePath": "backend/venv/bin/flake8",
+    "python.sortImports.args": [
+        "--profile", "black"
+    ],
+
 }
