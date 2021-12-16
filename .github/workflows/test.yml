@@ -37,6 +37,7 @@ jobs:
     
       working-directory: backend
       run: |
+        working-directory: backend
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         ls -a
