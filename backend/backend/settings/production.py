@@ -1,18 +1,11 @@
 import os
-from typing import List
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SECRET_KEY = os.environ.get("SECRET_KEY")
 DEBUG = os.environ.get("DEBUG")
 
-ALLOWED_HOSTS: List[str] = [
-    ".localhost",
-    "127.0.0.1",
-    "[::1]",
-    "0.0.0.0",
-    "web",
-]
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS")
 
 
 INSTALLED_APPS = [
