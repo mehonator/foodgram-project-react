@@ -43,8 +43,8 @@ jobs:
       working-directory: backend
       
       run: |
-        python manage.py test
-  
+        python manage.py test --settings backend.settings.production
+
       env:
         DB_ENGINE: django.db.backends.postgresql
         DB_NAME: postgres
