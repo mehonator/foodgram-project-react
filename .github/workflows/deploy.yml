@@ -41,7 +41,7 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USER }}
           key: ${{ secrets.SSH_KEY }}
+          working-directory: ./foodgram-project-react/infra
           script: |
-            sudo docker pull mehonator/foodram-backend
-            sudo docker stop $(sudo docker ps -a -q)
-            sudo docker run --rm -d -p 8000:8000 mehonator/foodram-backend
+            sudo docker-compose down
+            sudo docker-compose up --build  --detach
