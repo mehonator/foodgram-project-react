@@ -140,5 +140,4 @@ infra/nginx.conf
 .vscode/launch.json
 .vscode/settings.json
 .gitignore
-backend/utils
 media

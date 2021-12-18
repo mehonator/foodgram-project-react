@@ -43,7 +43,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd ./foodgram-project-react/infra
-            pwd
-            ls -a
-            sudo docker-compose down
+            sudo docker-compose stop
+            sudo docker container rm infra_web_1
+            sudo docker image rm mehonator/foodram-backend
             sudo docker-compose up --build  --detach
