@@ -37,11 +37,11 @@ jobs:
     steps:
       - name: executing remote ssh commands to deploy
         uses: appleboy/ssh-action@master
+        working-directory: ./foodgram-project-react/infra
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USER }}
           key: ${{ secrets.SSH_KEY }}
-          working-directory: ./foodgram-project-react/infra
           script: |
             pwd
             ls -a
