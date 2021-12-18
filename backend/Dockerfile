@@ -5,4 +5,4 @@ COPY requirements.txt ./
 
 RUN pip install -r requirements.txt
 COPY . ./
-CMD gunicorn backend.wsgi:application --env DJANGO_SETTINGS_MODULE=backend.settings.production.py --bind 0.0.0.0:8000 
+CMD gunicorn --env DJANGO_SETTINGS_MODULE=backend.settings.production.py backend.wsgi:application --bind 0.0.0.0:8000 
