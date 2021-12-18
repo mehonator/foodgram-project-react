@@ -11,3 +11,7 @@ Foodgram - убийца инстаграма, вобравший в себя с�
 3. Подключиться к контейнеру web и провести миграции
     3.1 docker exec -it <container_id> bash
     3.2 manage.py migrate
+
+Доступ к админке
+login admin@admin.ru
+password coagulant-cilantro-shoplift-untimed-sincere
