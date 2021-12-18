@@ -43,5 +43,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           working-directory: ./foodgram-project-react/infra
           script: |
+            pwd
+            ls -a
             sudo docker-compose down
             sudo docker-compose up --build  --detach
