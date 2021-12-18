@@ -384,7 +384,6 @@ class RecipesTests(TestCase):
             "text": "Охапка дров и плов готов!",
             "cooking_time": 10,
         }
-
         response = RecipesTests.user_client.put(
             reverse(URLS["recipes-detail"], args=[RecipesTests.recipe.id]),
             data=json.dumps(update_data),
@@ -402,6 +401,44 @@ class RecipesTests(TestCase):
         recipe_dict_image_basename = get_recipe_img_basename(recipe_dict)
 
         response = RecipesTests.author_client.put(
+            path=reverse(
+                URLS["recipes-detail"], args=[RecipesTests.recipe.id]
+            ),
+            data=json.dumps(update_data),
+            content_type="application/json",
+        )
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        response_data_image_basename = get_recipe_img_basename(recipe_dict)
+        self.assertJSONEqual(
+            json.dumps(response_data_image_basename),
+            recipe_dict_image_basename,
+        )
+
+    def test_partial_update(self):
+        update_data = {
+            "name": "Теперь тут плов",
+        }
+        response = RecipesTests.user_client.patch(
+            reverse(URLS["recipes-detail"], args=[RecipesTests.recipe.id]),
+            data=json.dumps(update_data),
+            content_type="application/json",
+        )
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_403_FORBIDDEN,
+            msg="Не автор не должен иметь доступ к редактированию",
+        )
+
+        recipe_dict = RecipeFactory.detail_to_dict(
+            RecipesTests.recipe, RecipesTests.user
+        )
+        recipe_dict_image_basename = get_recipe_img_basename(recipe_dict)
+
+        response = RecipesTests.author_client.patch(
             path=reverse(
                 URLS["recipes-detail"], args=[RecipesTests.recipe.id]
             ),

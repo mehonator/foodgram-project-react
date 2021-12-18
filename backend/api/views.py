@@ -39,6 +39,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         "list": [AllowAny],
         "retrieve": [AllowAny],
         "update": [IsAuthor],
+        "partial_update": [IsAuthor],
         "destroy": [IsAuthor],
         "favorite": [IsAuthenticated],
     }
@@ -46,7 +47,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     pagination_class = CustomLimitOffsetPagination
 
     def get_serializer_class(self):
-        if self.request.method in ("POST", "PUT"):
+        if self.request.method in ("POST", "PUT", "PATCH"):
             return RecipeCreateUpdateSerializer
         else:
             return RecipeSerializer

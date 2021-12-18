@@ -158,7 +158,9 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
     def update(self, recipe, validated_data):
         # the transaction is needed to rollback the creation of amounts
         with transaction.atomic():
-            amounts_ingredients = validated_data.pop("amounts_ingredients")
+            amounts_ingredients = validated_data.pop(
+                "amounts_ingredients", None
+            )
             saved_recipe = super().update(recipe, validated_data)
             if amounts_ingredients:
                 saved_recipe.amounts_ingredients.all().delete()
@@ -187,9 +189,7 @@ class RecipeCreateUpdateSerializer(RecipeSerializer):
 
     def validate_cooking_time(self, cooking_times):
         if cooking_times < 0:
-            raise serializers.ValidationError(
-                "This field must be positive."
-            )
+            raise serializers.ValidationError("This field must be positive.")
         return cooking_times
 
 
