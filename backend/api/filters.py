@@ -1,12 +1,16 @@
 import django_filters
 
 from api.constants import IS_FAVORITED_VALUES, IS_IN_SHOPING_CART_VALUES
-from api.models import Ingredient, Recipe
+from api.models import Ingredient, Recipe, Tag
 
 
 class RecipeFilter(django_filters.FilterSet):
     author = django_filters.NumberFilter()
-    tags = django_filters.AllValuesMultipleFilter(field_name="tags__slug")
+    tags = django_filters.ModelMultipleChoiceFilter(
+        field_name="tags__slug",
+        queryset=Tag.objects.all(),
+        to_field_name="slug",
+    )
     is_favorited = django_filters.CharFilter(method="get_is_favorited")
     is_in_shopping_cart = django_filters.CharFilter(
         method="get_is_in_shopping_cart"
