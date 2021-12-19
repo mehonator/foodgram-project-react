@@ -14,5 +14,8 @@ Foodgram - убийца инстаграма, вобравший в себя с�
     4.2 manage.py migrate
 
 http://51.250.30.111/
-login admin@admin.ru
-password coagulant-cilantro-shoplift-untimed-sincere
+
+login
+admin@admin.ru
+password
+coagulant-cilantro-shoplift-untimed-sincere
