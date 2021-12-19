@@ -48,7 +48,9 @@ class Tag(models.Model):
         max_length=512,
         unique=True,
     )
-    color = ColorField(verbose_name="Цвет", blank=True, null=True)
+    color = ColorField(
+        verbose_name="Цвет", format="hexa", blank=True, null=True
+    )
     slug = AutoSlugField(
         verbose_name="Слаг",
         populate_from="name",
