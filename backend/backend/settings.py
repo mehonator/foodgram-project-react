@@ -3,7 +3,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SECRET_KEY = os.environ.get("SECRET_KEY")
-DEBUG = os.environ.get("DEBUG")
+DEBUG = os.environ.get("DEBUG").slower() == "true"
 
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS").split()
 
