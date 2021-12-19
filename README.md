@@ -15,7 +15,8 @@ Foodgram - убийца инстаграма, вобравший в себя с�
 
 http://51.250.30.111/
 
-login
+login  
 admin@admin.ru
-password
+
+password  
 coagulant-cilantro-shoplift-untimed-sincere
