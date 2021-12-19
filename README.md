@@ -10,8 +10,8 @@ Foodgram - убийца инстаграма, вобравший в себя с�
 2. Заполнить .web_env и .db_env
 3. Запустить docker-compose: sudo docker-compose up --build
 4. Подключиться к контейнеру web и провести миграции
-    4.1 docker exec -it <container_id> bash
-    4.2 manage.py migrate
+    1. docker exec -it <container_id> bash
+    2. manage.py migrate
 
 http://51.250.30.111/
 
