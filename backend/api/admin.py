@@ -22,6 +22,10 @@ class MeasurementUnitAdmin(admin.ModelAdmin):
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
     readonly_fields = ("slug",)
+    fields = (
+        "name",
+        "color",
+    )
 
 
 @admin.register(Ingredient)
